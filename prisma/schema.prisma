@@ -1,0 +1,81 @@
+// Placeholder Prisma schema
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Add your models here
+model Post {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Interface {
+    id              String      @id // SHA-256 hash of key fields
+    
+    // DLAS Fields
+    status          String      // DLAS status
+    direction       String?
+    eimInterfaceId  String?
+    interfaceName   String?
+    sendAppId       String?
+    sendAppName     String?
+    receivedAppId   String?
+    receivedAppName String?
+    transferType    String?
+    frequency       String?
+    technology      String?
+    pattern         String?
+    
+    // Local Fields
+    interfaceStatus String      @default("ACTIVE")
+    sla             String?
+    priority        String      @default("LOW")
+    remarks         String?
+
+    // Audit Fields
+    createdAt       DateTime    @default(now())
+    updatedAt       DateTime    @updatedAt
+    createdBy       String?
+    updatedBy       String?
+
+    @@index([sendAppId])
+    @@index([receivedAppId])
+    @@index([eimInterfaceId])
+    @@index([interfaceStatus])
+}
+
+model ITService {
+  appInstanceId              String    @id
+  serviceName               String
+  pladaServiceId            String?
+  itServiceOwner            String?
+  itServiceOwnerId          String?
+  itServiceOwnerEmail       String?
+  itServiceOwnerDelegate    String?
+  itServiceOwnerDelegateId  String?
+  itServiceOwnerDelegateEmail String?
+  appInstanceName           String
+  appDescription           String?
+  appCriticality          String?
+  environment             String?
+  appInstStatus           String?
+  serviceItOrg6           String?
+  serviceItOrg7           String?
+  serviceItOrg8           String?
+  serviceItOrg9           String?
+  supportGroup            String?
+  status                  String    @default("ACTIVE")
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([serviceName])
+}

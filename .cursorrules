@@ -1,0 +1,120 @@
+# Expert Developer Rules for Remix
+
+## Objective:
+Build scalable, maintainable, and optimized Remix applications following modern web development best practices with TypeScript, TailwindCSS, and clean architecture.
+
+---
+
+## Code Style and Structure:
+1. Write concise, technical TypeScript code with clear, precise examples.
+2. Favor functional programming and declarative patterns over classes or imperative logic.
+3. Use meaningful variable names with auxiliary verbs (e.g., `isLoading`, `hasError`, `userRole`).
+4. Modularize components, utilities, types, and static content for reusability.
+5. Organize files consistently:
+   - **Imports** (standard, third-party, local).
+   - **Loaders and Actions** (data-fetching, mutations).
+   - **Component Logic** (UI structure and interactivity).
+6. Use `kebab-case` for file names:
+   - `*.tsx` for components.
+   - `*.ts` for utilities, types, and configurations.
+7. Use single quotes for string literals and indent code with **2 spaces**.
+8. Avoid trailing whitespace and ensure clean, readable formatting.
+
+---
+
+## Optimization and Best Practices:
+9. Prioritize Remix's **Server-Side Rendering (SSR)** and **loaders** for efficient data fetching.
+10. Avoid unnecessary use of client-side hooks like `useEffect` unless necessary for interactivity.
+11. Use **dynamic imports** to split bundles and improve page load performance.
+12. Optimize images with modern formats (WebP) and implement lazy loading with `loading="lazy"`.
+13. Implement **responsive design** using a mobile-first approach with TailwindCSS.
+14. Use nested layouts for modularity and composition across routes.
+
+---
+
+## TypeScript Guidelines:
+15. Define data structures using **interfaces** or **types** to ensure strong typing.
+16. Avoid the `any` type; fully leverage TypeScript's type system for safety and clarity.
+17. Use optional chaining (`?.`) and nullish coalescing (`??`) to handle undefined or null values.
+18. Always destructure props and avoid passing unnecessary data to components.
+
+---
+
+## UI and Styling:
+19. Use **TailwindCSS** for utility-first styling; avoid inline styles.
+20. Follow consistent design patterns for responsive and accessible UI.
+21. Implement **semantic HTML** and provide ARIA attributes for accessibility.
+22. Use modern UI frameworks like Radix UI or Shadcn UI to enhance component functionality.
+
+---
+
+## Data Management and Fetching:
+23. Prefer **loaders** for server-side data fetching and avoid unnecessary client-side requests.
+24. Use **actions** for handling server-side mutations.
+25. Manage non-blocking, client-side updates with the `useFetcher` hook.
+26. Use `useLoaderData` for fetching and caching server-rendered data on the client.
+27. Validate inputs using **Zod** or similar schema validation libraries in loaders and actions.
+
+---
+
+## Error Handling and Validation:
+28. Implement **error boundaries** to gracefully catch and handle unexpected errors.
+29. Use **catch boundaries** for route-specific error handling.
+30. Write guard clauses to handle edge cases and invalid states early.
+31. Validate user inputs on both the client and server before processing form submissions.
+32. Throw custom errors in loaders/actions for consistent error responses.
+
+---
+
+## State Management:
+33. Avoid heavy global state management libraries; prefer simple solutions like Zustand where needed.
+34. Use **useState** and **useReducer** sparingly for local state and interactivity.
+35. Keep state as close to the component consuming it as possible.
+
+---
+
+## Security and Performance:
+36. Prevent **XSS attacks** by sanitizing user-generated content before rendering.
+37. Use Remix's built-in **CSRF protection** for form submissions.
+38. Never expose sensitive server-side logic or environment variables to the client.
+39. Use `<Link prefetch="intent">` for faster navigation between routes.
+40. Optimize **resource caching** and data revalidation for improved performance.
+41. Defer loading of non-essential scripts using `<Scripts defer />`.
+
+---
+
+## Testing and Documentation:
+42. Write unit tests using **Jest** and `@testing-library/react` for components.
+43. Mock fetch requests in loaders and actions to test server-side logic.
+44. Provide concise comments for complex logic, and use **JSDoc** for improved IDE IntelliSense.
+45. Ensure proper test coverage for critical features like forms, loaders, and actions.
+
+---
+
+## Methodology:
+46. **System 2 Thinking**: Break tasks into smaller, manageable parts. Consider edge cases and consequences before implementation.
+47. **Tree of Thoughts**: Evaluate multiple solutions and their trade-offs to select the most optimal path forward.
+48. **Iterative Refinement**: Continuously review, test, and optimize code before finalization.
+
+---
+
+## Process:
+49. **Deep Dive Analysis**:
+    - Start with a thorough analysis of the requirements, constraints, and technical needs.
+50. **Planning**:
+    - Outline the architecture and implementation steps.
+    - Use `<PLANNING>` tags for structured solutions if needed.
+51. **Implementation**:
+    - Write clean, modular code step-by-step.
+52. **Review and Optimize**:
+    - Test for errors, validate edge cases, and optimize performance.
+53. **Finalization**:
+    - Ensure the code is robust, secure, and performant before release.
+
+---
+
+## Key Conventions:
+54. Use Remix's **loaders** and **actions** to handle server-side data fetching and mutations.
+55. Prioritize **accessibility** and clean user experiences in all components.
+56. Follow the Remix file structure for routes, nested layouts, and utilities.
+57. Optimize for performance, maintainability, and scalability at every stage.
