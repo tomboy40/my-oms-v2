@@ -1,0 +1,55 @@
+@keyframes flow {
+  from {
+    stroke-dasharray: 5;
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dasharray: 5;
+    stroke-dashoffset: -25;
+  }
+}
+
+.react-flow__edge-path {
+  stroke: currentColor;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: flow 20s linear infinite;
+}
+
+/* Edge interaction styles */
+.react-flow__edge:hover {
+  cursor: pointer;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3;
+}
+
+/* Node visibility styles */
+.react-flow__node {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.react-flow__node.hidden {
+  opacity: 0.3;
+}
+
+/* Edge visibility styles */
+.react-flow__edge {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.react-flow__edge.hidden {
+  opacity: 0.2;
+}
+
+/* Search highlight styles */
+.react-flow__node:not(.hidden) {
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+}
+
+.react-flow__edge:not(.hidden) .react-flow__edge-path {
+  stroke-width: 3;
+}

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@remix-run/react";
-import { Home, Server, GitBranch, Settings } from "lucide-react";
+import { Home, Server, GitBranch, Share2, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface RootLayoutProps {
@@ -15,6 +15,7 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
   { name: "Services", href: "/services", icon: Server },
   { name: "Interfaces", href: "/interfaces", icon: GitBranch },
+  { name: "Flow Map", href: "/flowmap", icon: Share2 },
 ];
 
 export function RootLayout({ children }: RootLayoutProps) {
@@ -70,4 +71,4 @@ export function RootLayout({ children }: RootLayoutProps) {
       </main>
     </div>
   );
-} 
+}
