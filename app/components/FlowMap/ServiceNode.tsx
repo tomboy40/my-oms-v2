@@ -22,11 +22,10 @@ function ServiceNodeComponent({ data }: NodeProps<FlowMapNode['data']>) {
       const percentage = i * step;
       const style = {
         [position === Position.Left || position === Position.Right ? 'top' : 'left']: `${percentage * 100}%`,
-        opacity: 0, // Hide the handle visually
-        pointerEvents: 'all' as const // Keep it interactive
+        opacity: 0,
+        pointerEvents: 'all' as const
       };
       
-      // Use consistent handle IDs (1-4)
       const handleId = `${position}-${i}`;
       
       handles.push(
@@ -51,13 +50,36 @@ function ServiceNodeComponent({ data }: NodeProps<FlowMapNode['data']>) {
     return handles;
   };
 
+  const handleCollapseClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    data.onToggleCollapse?.();
+  };
+
   return (
     <div className="relative group">
-      {/* Connection Points - 4 on each side */}
+      {/* Connection Points */}
       {createHandles(Position.Top, 4)}
       {createHandles(Position.Right, 4)}
       {createHandles(Position.Bottom, 4)}
       {createHandles(Position.Left, 4)}
+      
+      {/* Collapse/Expand Button */}
+      <button
+        onClick={handleCollapseClick}
+        className={`absolute -top-6 left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-gray-300 
+          flex items-center justify-center hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+          ${data.isCollapsed ? 'text-blue-500' : 'text-gray-500'}`}
+      >
+        {data.isCollapsed ? (
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+          </svg>
+        )}
+      </button>
       
       {/* Service Circle */}
       <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${statusColor} ${

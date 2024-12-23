@@ -38,6 +38,47 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   const [selectedNode, setSelectedNode] = useState<FlowMapNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<FlowMapEdge | null>(null);
   const [currentInterfaceIndex, setCurrentInterfaceIndex] = useState(0);
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+
+  // Helper function to toggle node collapse state
+  const toggleNodeCollapse = useCallback((nodeId: string) => {
+    setCollapsedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Helper function to check if a node should be visible
+  const isNodeVisible = useCallback((nodeId: string) => {
+    // Always show selected node
+    if (selectedNode?.id === nodeId) return true;
+    
+    // Check if this node is a child of any collapsed node
+    const isChildOfCollapsed = Array.from(collapsedNodes).some(collapsedId => {
+      // If this is the collapsed node itself, it should be visible
+      if (collapsedId === nodeId) return false;
+      
+      const collapsedEdges = edges.filter(edge => 
+        edge.source === collapsedId || edge.target === collapsedId
+      );
+      return collapsedEdges.some(edge => 
+        edge.source === nodeId || edge.target === nodeId
+      );
+    });
+
+    return !isChildOfCollapsed;
+  }, [selectedNode, collapsedNodes, edges]);
+
+  // Helper function to check if an edge should be visible
+  const isEdgeVisible = useCallback((edge: Edge) => {
+    // If either source or target node is hidden, hide the edge
+    return isNodeVisible(edge.source) && isNodeVisible(edge.target);
+  }, [isNodeVisible]);
 
   // Default layout configuration
   const defaultViewport = useMemo(() => ({ x: 0, y: 0, zoom: 1.5 }), []);
@@ -87,76 +128,120 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   // Initialize or update nodes and edges when data changes
   useEffect(() => {
     if (data.nodes && data.edges) {
-      // Update nodes with highlighted state
+      // Update nodes with highlighted state and collapse handlers
       const updatedNodes = data.nodes.map(node => ({
         ...node,
         data: {
           ...node.data,
-          isHighlighted: selectedNode?.id === node.id
+          isHighlighted: selectedNode?.id === node.id,
+          isCollapsed: collapsedNodes.has(node.id),
+          onToggleCollapse: () => toggleNodeCollapse(node.id)
         }
       }));
       setNodes(updatedNodes as Node[]);
       
       // Group interfaces by connected nodes (regardless of direction)
-      const groupedEdges = new Map<string, { interfaces: any[], isBidirectional: boolean }>();
+      const groupedEdges = new Map<string, { interfaces: any[], isBidirectional: boolean, directionalKeys: Set<string> }>();
       
       data.edges.forEach((edge) => {
-        // Create a consistent key for the node pair
-        const nodeIds = [edge.source, edge.target].sort();
-        const key = nodeIds.join('-');
-        
-        if (!groupedEdges.has(key)) {
-          groupedEdges.set(key, { interfaces: [], isBidirectional: false });
-        }
-        
-        const group = groupedEdges.get(key)!;
         const interfaces = Array.isArray(edge.data.interfaces) 
           ? edge.data.interfaces 
           : edge.data.interface 
             ? [edge.data.interface]
             : [];
             
-        // Add interfaces to the group
-        group.interfaces.push(...interfaces);
-        
-        // Check if this creates a bidirectional connection
-        const reverseKey = `${edge.target}-${edge.source}`;
-        const hasReverseEdge = data.edges.some(e => 
-          e.source === edge.target && e.target === edge.source
-        );
-        
-        if (hasReverseEdge) {
-          group.isBidirectional = true;
-        }
+        interfaces.forEach(iface => {
+          const senderAppId = iface.sendAppId?.toString() || edge.source;
+          const receiverAppId = iface.receiveAppId?.toString() || edge.target;
+          
+          // Create a consistent key for bidirectional pairs
+          const [node1, node2] = [senderAppId, receiverAppId].sort();
+          const bidirectionalKey = `${node1}-${node2}`;
+          
+          // Create a directional key for edge rendering
+          const directionalKey = `${senderAppId}-${receiverAppId}`;
+          
+          if (!groupedEdges.has(bidirectionalKey)) {
+            groupedEdges.set(bidirectionalKey, { 
+              interfaces: [], 
+              isBidirectional: false,
+              directionalKeys: new Set<string>()
+            });
+          }
+          
+          const group = groupedEdges.get(bidirectionalKey)!;
+          group.interfaces.push(iface);
+          group.directionalKeys.add(directionalKey);
+          
+          // Check if this creates a bidirectional connection
+          const reverseKey = `${receiverAppId}-${senderAppId}`;
+          if (data.edges.some(e => {
+            const eInterfaces = Array.isArray(e.data.interfaces) 
+              ? e.data.interfaces 
+              : e.data.interface 
+                ? [e.data.interface]
+                : [];
+            return eInterfaces.some(ei => 
+              (ei.sendAppId?.toString() === receiverAppId && 
+               ei.receiveAppId?.toString() === senderAppId) ||
+              (e.source === receiverAppId && e.target === senderAppId)
+            );
+          })) {
+            group.isBidirectional = true;
+          }
+        });
       });
 
       // Create consolidated edges
-      const consolidatedEdges = Array.from(groupedEdges.entries()).map(([key, group]) => {
+      const consolidatedEdges = Array.from(groupedEdges.entries()).flatMap(([key, group]) => {
         const [node1, node2] = key.split('-');
         
-        // For bidirectional edges, always use node1 as source
-        const source = node1;
-        const target = node2;
-        
-        return {
-          id: key,
-          source,
-          target,
-          type: 'interface',
-          data: {
-            interfaces: group.interfaces,
-            isBidirectional: group.isBidirectional,
-            currentInterfaceIndex: 0,
-            // Use the highest priority status from all interfaces
-            status: group.interfaces.reduce((maxStatus, iface) => 
-              iface.interfaceStatus === 'ACTIVE' ? 'ACTIVE' : maxStatus,
-              'INACTIVE'
-            ),
-            isHighlighted: selectedEdge?.id === key
-          },
-        };
-      }).filter(edge => edge.data.interfaces.length > 0);
+        // For each directional key in the group, create an edge
+        return Array.from(group.directionalKeys).map(directionalKey => {
+          const [senderId, receiverId] = directionalKey.split('-');
+          
+          // Find the original nodes to ensure they exist
+          const sourceNode = data.nodes.find(n => n.id === senderId);
+          const targetNode = data.nodes.find(n => n.id === receiverId);
+          
+          // Only create edge if both nodes exist
+          if (sourceNode && targetNode) {
+            // For bidirectional edges, use all interfaces in the group
+            // For unidirectional edges, filter interfaces by direction
+            const edgeInterfaces = group.isBidirectional
+              ? group.interfaces
+              : group.interfaces.filter(iface => 
+                  (iface.sendAppId?.toString() === senderId && 
+                   iface.receiveAppId?.toString() === receiverId) ||
+                  (edge => edge.source === senderId && edge.target === receiverId)
+                );
+            
+            return {
+              id: directionalKey,
+              source: senderId,
+              target: receiverId,
+              type: 'interface',
+              animated: false,
+              data: {
+                interfaces: edgeInterfaces,
+                isBidirectional: group.isBidirectional,
+                currentInterfaceIndex: 0,
+                status: edgeInterfaces.reduce((maxStatus, iface) => 
+                  iface.interfaceStatus === 'ACTIVE' ? 'ACTIVE' : maxStatus,
+                  'INACTIVE'
+                ),
+                priority: edgeInterfaces[0]?.priority || 'LOW',
+                isHighlighted: selectedEdge?.id === directionalKey
+              },
+            };
+          }
+          return null;
+        });
+      })
+      .filter((edge): edge is Edge => edge !== null && edge.data.interfaces.length > 0);
 
+      console.log('Consolidated edges:', consolidatedEdges);
+      
       // Calculate initial edge connections
       const initialEdges = consolidatedEdges.map((edge) => {
         const sourceNode = data.nodes.find((n) => n.id === edge.source);
@@ -178,7 +263,7 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
       
       setEdges(initialEdges as Edge[]);
     }
-  }, [data.nodes, data.edges, selectedNode, selectedEdge, getEdgeParams]);
+  }, [data.nodes, data.edges, selectedNode, selectedEdge, getEdgeParams, collapsedNodes, toggleNodeCollapse]);
 
   // Update edges during node movement with debounce
   const onNodeDrag = useCallback(
@@ -299,8 +384,8 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   return (
     <div className="h-[calc(100vh-64px)]">
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={nodes.filter(node => isNodeVisible(node.id))}
+        edges={edges.filter(edge => isEdgeVisible(edge))}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
