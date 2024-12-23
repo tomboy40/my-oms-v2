@@ -38,11 +38,21 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   const [selectedNode, setSelectedNode] = useState<FlowMapNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<FlowMapEdge | null>(null);
   const [currentInterfaceIndex, setCurrentInterfaceIndex] = useState(0);
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [masterNodeId, setMasterNodeId] = useState<string | null>(null);
 
-  // Helper function to toggle node collapse state
+  // Set master node when data changes
+  useEffect(() => {
+    if (data.nodes && data.nodes.length > 0) {
+      // Find the master node (the one being searched/focused)
+      const master = data.nodes.find(node => node.data.isMaster) || data.nodes[0];
+      setMasterNodeId(master.id);
+    }
+  }, [data.nodes]);
+
+  // Helper function to toggle node expansion state
   const toggleNodeCollapse = useCallback((nodeId: string) => {
-    setCollapsedNodes(prev => {
+    setExpandedNodes(prev => {
       const newSet = new Set(prev);
       if (newSet.has(nodeId)) {
         newSet.delete(nodeId);
@@ -55,30 +65,41 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
 
   // Helper function to check if a node should be visible
   const isNodeVisible = useCallback((nodeId: string) => {
+    // Always show master node
+    if (nodeId === masterNodeId) return true;
+
     // Always show selected node
     if (selectedNode?.id === nodeId) return true;
-    
-    // Check if this node is a child of any collapsed node
-    const isChildOfCollapsed = Array.from(collapsedNodes).some(collapsedId => {
-      // If this is the collapsed node itself, it should be visible
-      if (collapsedId === nodeId) return false;
-      
-      const collapsedEdges = edges.filter(edge => 
-        edge.source === collapsedId || edge.target === collapsedId
+
+    // For other nodes, check if they're connected to an expanded node
+    return Array.from(expandedNodes).some(expandedId => {
+      // Skip if this is a collapsed master node
+      if (expandedId === masterNodeId && !expandedNodes.has(masterNodeId)) return false;
+
+      const connectedEdges = data.edges.filter(edge => 
+        edge.source === expandedId || edge.target === expandedId
       );
-      return collapsedEdges.some(edge => 
+      return connectedEdges.some(edge => 
         edge.source === nodeId || edge.target === nodeId
       );
     });
-
-    return !isChildOfCollapsed;
-  }, [selectedNode, collapsedNodes, edges]);
+  }, [selectedNode, masterNodeId, expandedNodes, data.edges]);
 
   // Helper function to check if an edge should be visible
   const isEdgeVisible = useCallback((edge: Edge) => {
-    // If either source or target node is hidden, hide the edge
-    return isNodeVisible(edge.source) && isNodeVisible(edge.target);
-  }, [isNodeVisible]);
+    // Always show edges connected to master node if they connect to expanded nodes
+    if (edge.source === masterNodeId) {
+      return expandedNodes.has(masterNodeId) && isNodeVisible(edge.target);
+    }
+    if (edge.target === masterNodeId) {
+      return expandedNodes.has(masterNodeId) && isNodeVisible(edge.source);
+    }
+
+    // For other edges, show if both nodes are visible and at least one is expanded
+    return isNodeVisible(edge.source) && 
+           isNodeVisible(edge.target) &&
+           (expandedNodes.has(edge.source) || expandedNodes.has(edge.target));
+  }, [isNodeVisible, expandedNodes, masterNodeId]);
 
   // Default layout configuration
   const defaultViewport = useMemo(() => ({ x: 0, y: 0, zoom: 1.5 }), []);
@@ -134,8 +155,9 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
         data: {
           ...node.data,
           isHighlighted: selectedNode?.id === node.id,
-          isCollapsed: collapsedNodes.has(node.id),
-          onToggleCollapse: () => toggleNodeCollapse(node.id)
+          isCollapsed: !expandedNodes.has(node.id),
+          onToggleCollapse: () => toggleNodeCollapse(node.id),
+          isMaster: node.id === masterNodeId
         }
       }));
       setNodes(updatedNodes as Node[]);
@@ -263,7 +285,7 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
       
       setEdges(initialEdges as Edge[]);
     }
-  }, [data.nodes, data.edges, selectedNode, selectedEdge, getEdgeParams, collapsedNodes, toggleNodeCollapse]);
+  }, [data.nodes, data.edges, selectedNode, selectedEdge, getEdgeParams, expandedNodes, toggleNodeCollapse]);
 
   // Update edges during node movement with debounce
   const onNodeDrag = useCallback(
