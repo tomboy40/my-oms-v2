@@ -1,26 +1,40 @@
 @keyframes flow {
   from {
-    stroke-dasharray: 5;
     stroke-dashoffset: 0;
   }
   to {
-    stroke-dasharray: 5;
-    stroke-dashoffset: -25;
+    stroke-dashoffset: 100;
   }
 }
 
-.react-flow__edge-path {
-  stroke: currentColor;
-}
-
-.react-flow__edge.animated .react-flow__edge-path {
-  stroke-dasharray: 5;
-  animation: flow 20s linear infinite;
-}
-
-/* Edge interaction styles */
-.react-flow__edge:hover {
+.react-flow__edge {
+  pointer-events: all;
   cursor: pointer;
+}
+
+.react-flow__edge-path {
+  stroke: #94a3b8; /* Slate-400 for default state */
+  stroke-width: 2;
+  fill: none;
+}
+
+.react-flow__edge-circle {
+  pointer-events: none;
+}
+
+.react-flow__edge-arrow {
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.react-flow__edge:hover .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-arrow {
+  stroke: #475569; /* Slate-600 for hover state */
+  stroke-width: 3;
+}
+
+.react-flow__edge:hover marker path {
+  fill: #475569;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {

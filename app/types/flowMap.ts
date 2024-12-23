@@ -27,7 +27,9 @@ export interface FlowMapEdge {
   sourceHandle?: string;
   targetHandle?: string;
   data: {
-    interface: Interface;   // Original interface data
+    interface?: Interface;   // Single interface (legacy format)
+    interfaces?: Interface[]; // Multiple interfaces (new format)
+    currentInterfaceIndex?: number; // Current interface index being viewed
     status: InterfaceStatus;
     priority: Priority;
   };

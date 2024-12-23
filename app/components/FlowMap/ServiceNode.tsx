@@ -13,33 +13,51 @@ const statusColors = {
 function ServiceNodeComponent({ data }: NodeProps<FlowMapNode['data']>) {
   const statusColor = statusColors[data.status] || statusColors[ServiceStatus.INACTIVE];
 
+  // Helper function to create multiple handles
+  const createHandles = (position: Position, count: number) => {
+    const handles = [];
+    const step = 1 / (count + 1);
+    
+    for (let i = 1; i <= count; i++) {
+      const percentage = i * step;
+      const style = {
+        [position === Position.Left || position === Position.Right ? 'top' : 'left']: `${percentage * 100}%`,
+        opacity: 0, // Hide the handle visually
+        pointerEvents: 'all' as const // Keep it interactive
+      };
+      
+      // Use consistent handle IDs (1-4)
+      const handleId = `${position}-${i}`;
+      
+      handles.push(
+        <Handle
+          key={`${handleId}-source`}
+          type="source"
+          position={position}
+          className="w-2 h-2 !bg-transparent"
+          style={style}
+          id={handleId}
+        />,
+        <Handle
+          key={`${handleId}-target`}
+          type="target"
+          position={position}
+          className="w-2 h-2 !bg-transparent"
+          style={style}
+          id={handleId}
+        />
+      );
+    }
+    return handles;
+  };
+
   return (
     <div className="relative group">
-      {/* Connection Points */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="w-2 h-2 !bg-gray-400"
-        id="top"
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        className="w-2 h-2 !bg-gray-400"
-        id="right"
-      />
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        className="w-2 h-2 !bg-gray-400"
-        id="bottom"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="w-2 h-2 !bg-gray-400"
-        id="left"
-      />
+      {/* Connection Points - 4 on each side */}
+      {createHandles(Position.Top, 4)}
+      {createHandles(Position.Right, 4)}
+      {createHandles(Position.Bottom, 4)}
+      {createHandles(Position.Left, 4)}
       
       {/* Service Circle */}
       <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${statusColor}`}>
@@ -64,32 +82,6 @@ function ServiceNodeComponent({ data }: NodeProps<FlowMapNode['data']>) {
       <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
         <div className="text-xs font-medium text-gray-900">{data.label}</div>
       </div>
-      
-      {/* Source Handles */}
-      <Handle
-        type="source"
-        position={Position.Top}
-        className="w-2 h-2 !bg-gray-400"
-        id="top"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="w-2 h-2 !bg-gray-400"
-        id="right"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="w-2 h-2 !bg-gray-400"
-        id="bottom"
-      />
-      <Handle
-        type="source"
-        position={Position.Left}
-        className="w-2 h-2 !bg-gray-400"
-        id="left"
-      />
     </div>
   );
 }

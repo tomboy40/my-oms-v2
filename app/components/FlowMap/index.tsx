@@ -37,24 +37,27 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<FlowMapNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<FlowMapEdge | null>(null);
+  const [currentInterfaceIndex, setCurrentInterfaceIndex] = useState(0);
 
   // Default layout configuration
   const defaultViewport = useMemo(() => ({ x: 0, y: 0, zoom: 1.5 }), []);
 
-  // Smart edge routing
+  // Smart edge routing with improved angle calculations
   const getEdgeParams = useCallback((source: Node, target: Node) => {
-    const sourceX = source.position.x + source.width! / 2;
-    const sourceY = source.position.y + source.height! / 2;
-    const targetX = target.position.x + target.width! / 2;
-    const targetY = target.position.y + target.height! / 2;
+    const sourceX = source.position.x + (source.width ?? 0) / 2;
+    const sourceY = source.position.y + (source.height ?? 0) / 2;
+    const targetX = target.position.x + (target.width ?? 0) / 2;
+    const targetY = target.position.y + (target.height ?? 0) / 2;
 
     const dx = targetX - sourceX;
     const dy = targetY - sourceY;
     const angle = Math.atan2(dy, dx);
 
+    // Determine the primary direction
     let sourcePos: Position;
     let targetPos: Position;
 
+    // Use simpler angle-based direction determination
     if (Math.abs(angle) < Math.PI / 4) {
       sourcePos = Position.Right;
       targetPos = Position.Left;
@@ -69,9 +72,15 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
       targetPos = Position.Bottom;
     }
 
+    // Simplified handle number calculation
+    const getHandleNumber = (pos: Position) => {
+      // Always use the middle handle (2) for more stable connections
+      return 2;
+    };
+
     return {
-      sourceHandle: sourcePos,
-      targetHandle: targetPos,
+      sourceHandle: `${sourcePos}-${getHandleNumber(sourcePos)}`,
+      targetHandle: `${targetPos}-${getHandleNumber(targetPos)}`,
     };
   }, []);
 
@@ -79,14 +88,92 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   useEffect(() => {
     if (data.nodes && data.edges) {
       setNodes(data.nodes as Node[]);
-      setEdges(data.edges as Edge[]);
-    }
-  }, [data.nodes, data.edges]);
+      
+      // Group interfaces by connected nodes (regardless of direction)
+      const groupedEdges = new Map<string, { interfaces: any[], isBidirectional: boolean }>();
+      
+      data.edges.forEach((edge) => {
+        // Create a consistent key for the node pair
+        const nodeIds = [edge.source, edge.target].sort();
+        const key = nodeIds.join('-');
+        
+        if (!groupedEdges.has(key)) {
+          groupedEdges.set(key, { interfaces: [], isBidirectional: false });
+        }
+        
+        const group = groupedEdges.get(key)!;
+        const interfaces = Array.isArray(edge.data.interfaces) 
+          ? edge.data.interfaces 
+          : edge.data.interface 
+            ? [edge.data.interface]
+            : [];
+            
+        // Add interfaces to the group
+        group.interfaces.push(...interfaces);
+        
+        // Check if this creates a bidirectional connection
+        const reverseKey = `${edge.target}-${edge.source}`;
+        const hasReverseEdge = data.edges.some(e => 
+          e.source === edge.target && e.target === edge.source
+        );
+        
+        if (hasReverseEdge) {
+          group.isBidirectional = true;
+        }
+      });
 
-  // Handle node position changes
-  const handleNodeDragStop = useCallback(
+      // Create consolidated edges
+      const consolidatedEdges = Array.from(groupedEdges.entries()).map(([key, group]) => {
+        const [node1, node2] = key.split('-');
+        
+        // For bidirectional edges, always use node1 as source
+        const source = node1;
+        const target = node2;
+        
+        return {
+          id: key,
+          source,
+          target,
+          type: 'interface',
+          data: {
+            interfaces: group.interfaces,
+            isBidirectional: group.isBidirectional,
+            currentInterfaceIndex: 0,
+            // Use the highest priority status from all interfaces
+            status: group.interfaces.reduce((maxStatus, iface) => 
+              iface.interfaceStatus === 'ACTIVE' ? 'ACTIVE' : maxStatus,
+              'INACTIVE'
+            ),
+          },
+        };
+      }).filter(edge => edge.data.interfaces.length > 0);
+
+      // Calculate initial edge connections
+      const initialEdges = consolidatedEdges.map((edge) => {
+        const sourceNode = data.nodes.find((n) => n.id === edge.source);
+        const targetNode = data.nodes.find((n) => n.id === edge.target);
+        
+        if (sourceNode && targetNode) {
+          const { sourceHandle, targetHandle } = getEdgeParams(
+            sourceNode as Node,
+            targetNode as Node
+          );
+          return {
+            ...edge,
+            sourceHandle,
+            targetHandle,
+          };
+        }
+        return edge;
+      });
+      
+      setEdges(initialEdges as Edge[]);
+    }
+  }, [data.nodes, data.edges, getEdgeParams]);
+
+  // Update edges during node movement with debounce
+  const onNodeDrag = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      // Update edge connections
       setEdges((eds) =>
         eds.map((edge) => {
           if (edge.source === node.id || edge.target === node.id) {
@@ -104,11 +191,43 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
           return edge;
         })
       );
-
-      // Notify parent of all node positions
-      onNodeDragStop?.(nodes as FlowMapNode[]);
     },
-    [nodes, setEdges, getEdgeParams, onNodeDragStop]
+    [nodes, getEdgeParams]
+  );
+
+  // Handle node position changes with final update
+  const handleNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      const updatedNodes = nodes.map((n) => 
+        n.id === node.id ? { ...n, position: node.position } : n
+      );
+      
+      // Update edges with final positions
+      const updatedEdges = edges.map((edge) => {
+        if (edge.source === node.id || edge.target === node.id) {
+          const sourceNode = updatedNodes.find((n) => n.id === edge.source);
+          const targetNode = updatedNodes.find((n) => n.id === edge.target);
+          if (sourceNode && targetNode) {
+            const { sourceHandle, targetHandle } = getEdgeParams(sourceNode, targetNode);
+            return {
+              ...edge,
+              sourceHandle,
+              targetHandle,
+            };
+          }
+        }
+        return edge;
+      });
+
+      setNodes(updatedNodes);
+      setEdges(updatedEdges);
+
+      // Call the parent callback if provided
+      if (onNodeDragStop) {
+        onNodeDragStop(updatedNodes as FlowMapNode[]);
+      }
+    },
+    [nodes, edges, setNodes, setEdges, getEdgeParams, onNodeDragStop]
   );
 
   // Handle node click
@@ -131,6 +250,33 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
     []
   );
 
+  // Reset interface index when selecting a new edge
+  useEffect(() => {
+    if (selectedEdge) {
+      setCurrentInterfaceIndex(selectedEdge.data.currentInterfaceIndex || 0);
+    }
+  }, [selectedEdge]);
+
+  // Handle interface navigation
+  const handleInterfaceNavigate = useCallback((newIndex: number) => {
+    setCurrentInterfaceIndex(newIndex);
+    if (selectedEdge) {
+      const updatedEdge = {
+        ...selectedEdge,
+        data: {
+          ...selectedEdge.data,
+          currentInterfaceIndex: newIndex
+        }
+      };
+      setSelectedEdge(updatedEdge);
+      
+      // Update the edge in the edges state
+      setEdges(eds => 
+        eds.map(e => e.id === selectedEdge.id ? updatedEdge : e)
+      );
+    }
+  }, [selectedEdge, setEdges]);
+
   return (
     <div className="h-[calc(100vh-64px)]">
       <ReactFlow
@@ -141,6 +287,7 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
         onNodeDragStop={handleNodeDragStop}
+        onNodeDrag={onNodeDrag}
         defaultViewport={defaultViewport}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -161,8 +308,13 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
       
       {selectedEdge && (
         <InterfaceDetailPanel
-          interface={selectedEdge.data.interface}
-          onClose={() => setSelectedEdge(null)}
+          interfaces={selectedEdge.data.interfaces}
+          currentIndex={currentInterfaceIndex}
+          onNavigate={handleInterfaceNavigate}
+          onClose={() => {
+            setSelectedEdge(null);
+            setCurrentInterfaceIndex(0);
+          }}
         />
       )}
     </div>
