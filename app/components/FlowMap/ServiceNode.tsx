@@ -60,7 +60,9 @@ function ServiceNodeComponent({ data }: NodeProps<FlowMapNode['data']>) {
       {createHandles(Position.Left, 4)}
       
       {/* Service Circle */}
-      <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${statusColor}`}>
+      <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${statusColor} ${
+        data.isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+      }`}>
         <div className="flex flex-col items-center">
           <svg
             viewBox="0 0 24 24"
@@ -80,7 +82,9 @@ function ServiceNodeComponent({ data }: NodeProps<FlowMapNode['data']>) {
 
       {/* Service Label */}
       <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-        <div className="text-xs font-medium text-gray-900">{data.label}</div>
+        <div className={`text-xs font-medium ${data.isHighlighted ? 'text-blue-900' : 'text-gray-900'}`}>
+          {data.label}
+        </div>
       </div>
     </div>
   );

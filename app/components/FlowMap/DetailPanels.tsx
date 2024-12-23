@@ -45,8 +45,15 @@ export function ServiceDetailPanel({ service, onClose }: ServiceDetailPanelProps
 }
 
 export function InterfaceDetailPanel({ interfaces, currentIndex, onNavigate, onClose }: InterfaceDetailPanelProps) {
-  const currentInterface = interfaces[currentIndex];
-  const hasMultipleInterfaces = interfaces.length > 1;
+  // Ensure interfaces array exists and currentIndex is valid
+  const hasInterfaces = Array.isArray(interfaces) && interfaces.length > 0;
+  const safeIndex = hasInterfaces ? Math.min(Math.max(0, currentIndex), interfaces.length - 1) : 0;
+  const currentInterface = hasInterfaces ? interfaces[safeIndex] : null;
+  const hasMultipleInterfaces = hasInterfaces && interfaces.length > 1;
+
+  if (!hasInterfaces || !currentInterface) {
+    return null;
+  }
 
   return (
     <div className="absolute top-4 right-4 w-80 bg-white rounded-lg shadow-lg p-6">
@@ -63,22 +70,22 @@ export function InterfaceDetailPanel({ interfaces, currentIndex, onNavigate, onC
       {hasMultipleInterfaces && (
         <div className="flex justify-between items-center mb-4">
           <button
-            onClick={() => onNavigate(currentIndex - 1)}
-            disabled={currentIndex === 0}
+            onClick={() => onNavigate(safeIndex - 1)}
+            disabled={safeIndex === 0}
             className={`p-1 rounded hover:bg-gray-100 ${
-              currentIndex === 0 ? 'text-gray-300' : 'text-gray-600'
+              safeIndex === 0 ? 'text-gray-300' : 'text-gray-600'
             }`}
           >
             <ChevronLeft size={20} />
           </button>
           <span className="text-sm text-gray-500">
-            Interface {currentIndex + 1} of {interfaces.length}
+            Interface {safeIndex + 1} of {interfaces.length}
           </span>
           <button
-            onClick={() => onNavigate(currentIndex + 1)}
-            disabled={currentIndex === interfaces.length - 1}
+            onClick={() => onNavigate(safeIndex + 1)}
+            disabled={safeIndex === interfaces.length - 1}
             className={`p-1 rounded hover:bg-gray-100 ${
-              currentIndex === interfaces.length - 1 ? 'text-gray-300' : 'text-gray-600'
+              safeIndex === interfaces.length - 1 ? 'text-gray-300' : 'text-gray-600'
             }`}
           >
             <ChevronRight size={20} />

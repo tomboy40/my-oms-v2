@@ -87,7 +87,15 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   // Initialize or update nodes and edges when data changes
   useEffect(() => {
     if (data.nodes && data.edges) {
-      setNodes(data.nodes as Node[]);
+      // Update nodes with highlighted state
+      const updatedNodes = data.nodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          isHighlighted: selectedNode?.id === node.id
+        }
+      }));
+      setNodes(updatedNodes as Node[]);
       
       // Group interfaces by connected nodes (regardless of direction)
       const groupedEdges = new Map<string, { interfaces: any[], isBidirectional: boolean }>();
@@ -144,6 +152,7 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
               iface.interfaceStatus === 'ACTIVE' ? 'ACTIVE' : maxStatus,
               'INACTIVE'
             ),
+            isHighlighted: selectedEdge?.id === key
           },
         };
       }).filter(edge => edge.data.interfaces.length > 0);
@@ -169,7 +178,7 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
       
       setEdges(initialEdges as Edge[]);
     }
-  }, [data.nodes, data.edges, getEdgeParams]);
+  }, [data.nodes, data.edges, selectedNode, selectedEdge, getEdgeParams]);
 
   // Update edges during node movement with debounce
   const onNodeDrag = useCallback(
@@ -246,6 +255,8 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
       const flowEdge = edge as unknown as FlowMapEdge;
       setSelectedEdge(flowEdge);
       setSelectedNode(null);
+      // Always reset the interface index when selecting a new edge
+      setCurrentInterfaceIndex(0);
     },
     []
   );
@@ -253,19 +264,27 @@ export function FlowMap({ data, onNodeDragStop }: FlowMapProps) {
   // Reset interface index when selecting a new edge
   useEffect(() => {
     if (selectedEdge) {
-      setCurrentInterfaceIndex(selectedEdge.data.currentInterfaceIndex || 0);
+      // Ensure the current index is valid for the new edge
+      const maxIndex = selectedEdge.data.interfaces.length - 1;
+      const safeIndex = Math.min(Math.max(0, currentInterfaceIndex), maxIndex);
+      if (safeIndex !== currentInterfaceIndex) {
+        setCurrentInterfaceIndex(safeIndex);
+      }
     }
-  }, [selectedEdge]);
+  }, [selectedEdge, currentInterfaceIndex]);
 
   // Handle interface navigation
   const handleInterfaceNavigate = useCallback((newIndex: number) => {
-    setCurrentInterfaceIndex(newIndex);
     if (selectedEdge) {
+      const maxIndex = selectedEdge.data.interfaces.length - 1;
+      const safeIndex = Math.min(Math.max(0, newIndex), maxIndex);
+      setCurrentInterfaceIndex(safeIndex);
+      
       const updatedEdge = {
         ...selectedEdge,
         data: {
           ...selectedEdge.data,
-          currentInterfaceIndex: newIndex
+          currentInterfaceIndex: safeIndex
         }
       };
       setSelectedEdge(updatedEdge);

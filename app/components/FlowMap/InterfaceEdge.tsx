@@ -42,10 +42,9 @@ function InterfaceEdgeComponent({
   const forwardArrowPoint2Y = midY - arrowLength * Math.sin(angle + Math.PI / 6);
 
   // Calculate backward arrow points (if bidirectional)
-  const backwardMidX = midX + (data.isBidirectional ? 20 : 0); // Offset for bidirectional
-  const backwardArrowPoint1X = backwardMidX + arrowLength * Math.cos(angle - Math.PI / 6);
+  const backwardArrowPoint1X = midX + arrowLength * Math.cos(angle - Math.PI / 6);
   const backwardArrowPoint1Y = midY + arrowLength * Math.sin(angle - Math.PI / 6);
-  const backwardArrowPoint2X = backwardMidX + arrowLength * Math.cos(angle + Math.PI / 6);
+  const backwardArrowPoint2X = midX + arrowLength * Math.cos(angle + Math.PI / 6);
   const backwardArrowPoint2Y = midY + arrowLength * Math.sin(angle + Math.PI / 6);
 
   return (
@@ -53,34 +52,16 @@ function InterfaceEdgeComponent({
       {/* Edge path */}
       <path
         id={id}
-        className="react-flow__edge-path"
+        className={`react-flow__edge-path ${data.isHighlighted ? 'stroke-blue-500' : ''}`}
         d={edgePath}
         strokeWidth={2}
         fill="none"
       />
 
-      {/* Source circle */}
-      <circle
-        cx={sourceX}
-        cy={sourceY}
-        r="4"
-        fill="#94a3b8"
-        className="react-flow__edge-circle"
-      />
-
-      {/* Target circle */}
-      <circle
-        cx={targetX}
-        cy={targetY}
-        r="4"
-        fill="#94a3b8"
-        className="react-flow__edge-circle"
-      />
-
       {/* Forward arrow */}
       <path
         d={`M ${midX} ${midY} L ${forwardArrowPoint1X} ${forwardArrowPoint1Y} M ${midX} ${midY} L ${forwardArrowPoint2X} ${forwardArrowPoint2Y}`}
-        stroke="#94a3b8"
+        stroke={data.isHighlighted ? '#3b82f6' : '#94a3b8'}
         strokeWidth={2}
         fill="none"
         className="react-flow__edge-arrow"
@@ -89,8 +70,8 @@ function InterfaceEdgeComponent({
       {/* Backward arrow (if bidirectional) */}
       {data.isBidirectional && (
         <path
-          d={`M ${backwardMidX} ${midY} L ${backwardArrowPoint1X} ${backwardArrowPoint1Y} M ${backwardMidX} ${midY} L ${backwardArrowPoint2X} ${backwardArrowPoint2Y}`}
-          stroke="#94a3b8"
+          d={`M ${midX} ${midY} L ${backwardArrowPoint1X} ${backwardArrowPoint1Y} M ${midX} ${midY} L ${backwardArrowPoint2X} ${backwardArrowPoint2Y}`}
+          stroke={data.isHighlighted ? '#3b82f6' : '#94a3b8'}
           strokeWidth={2}
           fill="none"
           className="react-flow__edge-arrow"
