@@ -48,11 +48,30 @@ function ServiceNodeComponent({ data, selected }: NodeProps<FlowMapNode['data']>
       )}
       
       {/* Node Content */}
-      <div className={`node-content rounded-full bg-white border-2 ${selected ? 'border-blue-500' : 'border-gray-200'} p-4 min-w-[100px] min-h-[100px] flex items-center justify-center`}>
+      <div className={`node-content rounded-full bg-white border-2 ${selected ? 'border-blue-500' : 'border-gray-200'} p-4 min-w-[100px] min-h-[100px] flex items-center justify-center relative`}>
         <div className="text-center">
           <div className="font-bold">{data.label}</div>
           <div className="text-sm">{data.service?.appInstanceId}</div>
         </div>
+
+        {/* Expand/Collapse Button */}
+        {data.onToggleCollapse && (
+          <button
+            onClick={handleExpandClick}
+            className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+            title={data.isCollapsed ? "Expand" : "Collapse"}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-4 h-4 text-gray-600"
+              style={{ transform: data.isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
+            >
+              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

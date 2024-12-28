@@ -90,9 +90,6 @@ export async function loader({ request }: { request: Request }) {
       source: serviceA,
       target: serviceB,
       data: {
-        label: allInterfaces.length > 1 
-          ? `${allInterfaces.length} Interfaces`
-          : allInterfaces[0].interfaceName,
         interfaces: allInterfaces,
         isBidirectional,
         forwardCount: forward.length,
