@@ -1,34 +1,33 @@
-import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "@remix-run/react";
 import { Search } from "lucide-react";
+import { useFlowSearch } from "./hooks/useFlowSearch";
+import { useState, useEffect } from 'react';
 
 interface SearchFlowProps {
-  initialQuery: string;
+  initialSearchTerm: string;
   onSearch?: (query: string) => void;
 }
 
-export function SearchFlow({ initialQuery, onSearch }: SearchFlowProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState(initialQuery);
-  const [isExpanded, setIsExpanded] = useState(!!initialQuery);
+export function SearchFlow({ initialSearchTerm, onSearch }: SearchFlowProps) {
+  const {
+    searchTerm,
+    handleSearch,
+    clearSearch,
+    isExpanded,
+    setIsExpanded
+  } = useFlowSearch({ initialSearchTerm, onSearch });
 
+  const [inputValue, setInputValue] = useState(searchTerm);
+
+  // Update input value when searchTerm changes (e.g., on initial load)
   useEffect(() => {
-    setQuery(initialQuery);
-    setIsExpanded(!!initialQuery);
-  }, [initialQuery]);
+    setInputValue(searchTerm);
+  }, [searchTerm]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const search = formData.get("search") as string;
-    
-    if (search) {
-      onSearch?.(search);
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set("search", search);
-      setSearchParams(newParams);
+    if (inputValue.trim()) {
+      handleSearch(inputValue.trim());
     }
-    // Don't collapse the search after submission
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -39,55 +38,43 @@ export function SearchFlow({ initialQuery, onSearch }: SearchFlowProps) {
       }
     }
     if (e.key === 'Escape') {
-      setIsExpanded(false);
-      setQuery('');
+      clearSearch();
+      setInputValue('');
     }
   };
 
   return (
-    <div className="absolute top-4 left-4 z-50">
-      <form id="search-form" onSubmit={handleSubmit}>
-        <div 
-          className={`
-            flex items-center bg-white rounded-lg shadow-lg transition-all duration-200 ease-in-out
-            ${isExpanded ? 'w-64' : 'w-10 hover:w-12'}
-          `}
+    <div className="fixed top-20 left-4 z-50">
+      <form id="search-form" onSubmit={handleSubmit} className="relative">
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 flex items-center justify-center"
         >
-          <button
-            type="button"
-            onClick={() => {
-              setIsExpanded(!isExpanded);
-              if (!isExpanded) {
-                // Focus the input after expanding
-                setTimeout(() => {
-                  const input = document.querySelector('input[name="search"]') as HTMLInputElement;
-                  if (input) {
-                    input.focus();
-                  }
-                }, 100);
-              }
-            }}
-            className={`
-              p-2 text-gray-500 hover:text-gray-700 transition-all duration-200
-              ${isExpanded ? 'bg-gray-100 rounded-l-lg' : 'rounded-lg hover:bg-gray-100 w-full'}
-            `}
-          >
-            <Search size={20} className="min-w-[20px]" />
-          </button>
-          
-          {isExpanded && (
+          <Search className="h-5 w-5" />
+        </button>
+
+        {isExpanded && (
+          <div className="absolute left-0 top-0 flex items-center">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-2 rounded-l-lg bg-white shadow-md hover:bg-gray-50 flex items-center justify-center border-r border-gray-200"
+            >
+              <Search className="h-5 w-5" />
+            </button>
             <input
               type="text"
               name="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Search by app ID..."
-              className="flex-1 px-3 py-2 border-none focus:outline-none focus:ring-0 text-sm"
+              placeholder="Search services..."
+              className="h-full w-64 px-4 py-2 rounded-r-lg bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
-          )}
-        </div>
+          </div>
+        )}
       </form>
     </div>
   );

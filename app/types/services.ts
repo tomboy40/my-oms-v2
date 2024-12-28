@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export enum ServiceStatus {
   ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE'
+  INACTIVE = 'INACTIVE',
+  TBC = 'TBC'
 }
 
 // Create a Zod schema that matches the existing ITService type

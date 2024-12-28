@@ -1,13 +1,13 @@
 import { memo } from 'react';
 import { EdgeLabelRenderer, BaseEdge, EdgeProps } from 'reactflow';
 import type { FlowMapEdge } from '~/types/flowMap';
-import { InterfaceStatus, Priority } from '~/types/interfaces';
+import { InterfaceStatus } from '~/types/interfaces';
 
-const statusColors = {
+const STATUS_STYLES = {
   [InterfaceStatus.ACTIVE]: 'text-green-500 border-green-500',
   [InterfaceStatus.INACTIVE]: 'text-gray-400 border-gray-400',
-  [InterfaceStatus.MAINTENANCE]: 'text-red-500 border-red-500',
-};
+  [InterfaceStatus.TBC]: 'text-red-500 border-red-500',
+} as const;
 
 function InterfaceEdgeComponent({
   id,
@@ -15,67 +15,81 @@ function InterfaceEdgeComponent({
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   data,
   style = {},
-  markerEnd,
+  selected,
 }: EdgeProps<FlowMapEdge['data']>) {
-  // Calculate the path for a straight line
-  const edgePath = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+  if (!data) return null;
 
-  // Calculate the midpoint for the arrow
-  const dx = targetX - sourceX;
-  const dy = targetY - sourceY;
-  const midX = sourceX + dx * 0.5;
-  const midY = sourceY + dy * 0.5;
+  const midX = (sourceX + targetX) / 2;
+  const midY = (sourceY + targetY) / 2;
   
-  // Calculate arrow angles
-  const angle = Math.atan2(dy, dx);
-  const arrowLength = 10;
-  const arrowWidth = 6;
-
-  // Calculate forward arrow points
-  const forwardArrowPoint1X = midX - arrowLength * Math.cos(angle - Math.PI / 6);
-  const forwardArrowPoint1Y = midY - arrowLength * Math.sin(angle - Math.PI / 6);
-  const forwardArrowPoint2X = midX - arrowLength * Math.cos(angle + Math.PI / 6);
-  const forwardArrowPoint2Y = midY - arrowLength * Math.sin(angle + Math.PI / 6);
-
-  // Calculate backward arrow points (if bidirectional)
-  const backwardArrowPoint1X = midX + arrowLength * Math.cos(angle - Math.PI / 6);
-  const backwardArrowPoint1Y = midY + arrowLength * Math.sin(angle - Math.PI / 6);
-  const backwardArrowPoint2X = midX + arrowLength * Math.cos(angle + Math.PI / 6);
-  const backwardArrowPoint2Y = midY + arrowLength * Math.sin(angle + Math.PI / 6);
-
+  // Calculate angle for marker rotation
+  const angle = Math.atan2(targetY - sourceY, targetX - sourceX) * (180 / Math.PI);
+  const hasMultipleInterfaces = data.interfaces && data.interfaces.length > 1;
+  const isBidirectional = data.isBidirectional;
+  
   return (
     <>
-      {/* Edge path */}
+      {/* Main Edge Line */}
       <path
         id={id}
-        className={`react-flow__edge-path ${data.isHighlighted ? 'stroke-blue-500' : ''}`}
-        d={edgePath}
-        strokeWidth={2}
-        fill="none"
+        d={`M ${sourceX} ${sourceY} L ${targetX} ${targetY}`}
+        className={`react-flow__edge-path ${selected ? 'selected' : ''}`}
+        style={{
+          ...style,
+          strokeWidth: selected ? 3 : 2,
+          stroke: selected ? '#3b82f6' : '#94a3b8',
+        }}
       />
+      
+      {/* Direction Markers */}
+      {isBidirectional ? (
+        // Bidirectional Markers
+        <>
+          {/* Forward arrow */}
+          <g transform={`translate(${midX + 15},${midY}) rotate(${angle})`}>
+            <path
+              d="M -6 -4 L 6 0 L -6 4 Z"
+              fill={selected ? '#3b82f6' : '#94a3b8'}
+              stroke="none"
+            />
+          </g>
+          {/* Reverse arrow */}
+          <g transform={`translate(${midX - 15},${midY}) rotate(${angle + 180})`}>
+            <path
+              d="M -6 -4 L 6 0 L -6 4 Z"
+              fill={selected ? '#3b82f6' : '#94a3b8'}
+              stroke="none"
+            />
+          </g>
+        </>
+      ) : (
+        // Single direction arrow
+        <g transform={`translate(${midX},${midY}) rotate(${angle})`}>
+          <path
+            d="M -6 -4 L 6 0 L -6 4 Z"
+            fill={selected ? '#3b82f6' : '#94a3b8'}
+            stroke="none"
+          />
+        </g>
+      )}
 
-      {/* Forward arrow */}
-      <path
-        d={`M ${midX} ${midY} L ${forwardArrowPoint1X} ${forwardArrowPoint1Y} M ${midX} ${midY} L ${forwardArrowPoint2X} ${forwardArrowPoint2Y}`}
-        stroke={data.isHighlighted ? '#3b82f6' : '#94a3b8'}
-        strokeWidth={2}
-        fill="none"
-        className="react-flow__edge-arrow"
-      />
-
-      {/* Backward arrow (if bidirectional) */}
-      {data.isBidirectional && (
-        <path
-          d={`M ${midX} ${midY} L ${backwardArrowPoint1X} ${backwardArrowPoint1Y} M ${midX} ${midY} L ${backwardArrowPoint2X} ${backwardArrowPoint2Y}`}
-          stroke={data.isHighlighted ? '#3b82f6' : '#94a3b8'}
-          strokeWidth={2}
-          fill="none"
-          className="react-flow__edge-arrow"
-        />
+      {/* Interface Count Indicator */}
+      {hasMultipleInterfaces && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${midX}px,${midY - 15}px)`,
+              pointerEvents: 'none',
+            }}
+            className="px-2 py-1 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-medium text-gray-600"
+          >
+            {data.interfaces.length} Feeds
+            {isBidirectional && ` (${data.forwardCount}↑/${data.reverseCount}↓)`}
+          </div>
+        </EdgeLabelRenderer>
       )}
     </>
   );

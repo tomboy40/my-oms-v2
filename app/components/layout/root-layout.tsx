@@ -66,7 +66,7 @@ export function RootLayout({ children }: RootLayoutProps) {
       </nav>
 
       {/* Main content */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-8 h-[calc(100vh-2rem)]">
         {children}
       </main>
     </div>

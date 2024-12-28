@@ -14,6 +14,9 @@ export interface FlowMapNode {
     label: string;           // Display name
     service: ITService;      // Original service data
     status: ServiceStatus;   // Service status
+    isCollapsed?: boolean;   // Collapse state
+    onToggleCollapse?: () => void; // Function to toggle collapse state
+    isParent?: boolean;      // Whether this is the parent node
   };
 }
 
@@ -32,6 +35,8 @@ export interface FlowMapEdge {
     currentInterfaceIndex?: number; // Current interface index being viewed
     status: InterfaceStatus;
     priority: Priority;
+    sourceNode?: FlowMapNode;  // Add source node data
+    targetNode?: FlowMapNode;  // Add target node data
   };
 }
 
@@ -51,4 +56,18 @@ export interface NodeClickData {
 export interface EdgeClickData {
   edgeId: string;
   interface: Interface;
+}
+
+// Visibility Management Types
+export interface NodeExpansionState {
+  isExpanded: boolean;
+  childNodes: Set<string>;
+  relatedEdges: Set<string>;
+  level: number;
+}
+
+export interface VisibilityManager {
+  expansionStates: Map<string, NodeExpansionState>;
+  visibleNodes: Set<string>;
+  visibleEdges: Set<string>;
 }

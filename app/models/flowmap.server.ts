@@ -3,22 +3,7 @@ import type { ITService, Interface } from "@prisma/client";
 import { ServiceStatus } from "~/types/services";
 
 export async function searchServicesAndInterfaces(searchTerm: string) {
-  // Find the initial service
-  const mainService = await prisma.iTService.findUnique({
-    where: {
-      appInstanceId: searchTerm
-    }
-  });
-
-  // If main service doesn't exist, return empty results
-  if (!mainService) {
-    return {
-      services: [],
-      interfaces: []
-    };
-  }
-
-  // Find interfaces connected to this app ID
+  // First find all interfaces connected to this app ID
   const interfaces = await prisma.interface.findMany({
     where: {
       OR: [
@@ -28,53 +13,82 @@ export async function searchServicesAndInterfaces(searchTerm: string) {
     }
   });
 
-  // Get all unique app IDs from interfaces
-  const connectedAppIds = new Set<string>();
-  interfaces.forEach(iface => {
-    connectedAppIds.add(iface.sendAppId);
-    connectedAppIds.add(iface.receivedAppId);
-  });
+  // If interfaces found, handle the connected services case
+  if (interfaces.length > 0) {
+    // Get all unique app IDs from interfaces
+    const connectedApps = new Map<string, string>();
+    connectedApps.set(searchTerm, searchTerm); // Initialize with search term
 
-  // Find existing services for connected apps
-  const connectedServices = connectedAppIds.size > 0 
-    ? await prisma.iTService.findMany({
-        where: {
-          appInstanceId: {
-            in: Array.from(connectedAppIds)
-          }
+    interfaces.forEach(iface => {
+      if (iface.sendAppId) {
+        connectedApps.set(iface.sendAppId, iface.sendAppName || iface.sendAppId);
+      }
+      if (iface.receivedAppId) {
+        connectedApps.set(iface.receivedAppId, iface.receivedAppName || iface.receivedAppId);
+      }
+    });
+
+    // Find existing services for all app IDs
+    const existingServices = await prisma.iTService.findMany({
+      where: {
+        appInstanceId: {
+          in: Array.from(connectedApps.keys())
         }
-      })
-    : [];
+      }
+    });
 
-  // Create a map of existing services
-  const serviceMap = new Map<string, ITService>();
-  serviceMap.set(mainService.appInstanceId, mainService);
-  connectedServices.forEach(service => {
-    serviceMap.set(service.appInstanceId, service);
-  });
+    // Create a map of existing services
+    const serviceMap = new Map<string, ITService>();
+    existingServices.forEach(service => {
+      serviceMap.set(service.appInstanceId, service);
+    });
 
-  // Create placeholder services only for connected services
-  const allServices: ITService[] = Array.from(connectedAppIds).map(appId => {
-    const existingService = serviceMap.get(appId);
-    if (existingService) {
-      return existingService;
-    }
-    // Create a placeholder service for connected apps only
+    // Convert connected apps to array of services
+    const services = Array.from(connectedApps.entries()).map(([appId, appName]) => {
+      const existingService = serviceMap.get(appId);
+      
+      if (existingService) {
+        return {
+          ...existingService,
+          isParent: appId === searchTerm
+        };
+      }
+      
+      // Create a dummy service with app name
+      return {
+        appInstanceId: appId,
+        serviceName: appName,
+        status: ServiceStatus.TBC,
+        isParent: appId === searchTerm
+      } as ITService;
+    });
+
     return {
-      appInstanceId: appId,
-      status: ServiceStatus.INACTIVE,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    } as ITService;
-  });
-
-  // Make sure the main service is included
-  if (!allServices.find(s => s.appInstanceId === mainService.appInstanceId)) {
-    allServices.push(mainService);
+      services,
+      interfaces
+    };
   }
 
+  // If no interfaces found, check if the service exists in ITService
+  const searchedService = await prisma.iTService.findUnique({
+    where: {
+      appInstanceId: searchTerm
+    }
+  });
+
+  if (searchedService) {
+    return {
+      services: [{
+        ...searchedService,
+        isParent: true
+      }],
+      interfaces: []
+    };
+  }
+
+  // If service not found in both interfaces and ITService, return empty arrays
   return {
-    services: allServices,
-    interfaces
+    services: [],
+    interfaces: []
   };
 }

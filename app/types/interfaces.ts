@@ -13,7 +13,8 @@ export enum Priority {
 
 export enum InterfaceStatus {
   ACTIVE = "ACTIVE",
-  INACTIVE = "INACTIVE"
+  INACTIVE = "INACTIVE",
+  TBC = 'TBC'
 }
 
 // Interface schema for API responses
