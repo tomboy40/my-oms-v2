@@ -20,11 +20,16 @@ const HANDLE_POSITIONS = [
   { type: "target", position: Position.Bottom, id: "target-bottom" }
 ] as const;
 
-function ServiceNodeComponent({ data, selected }: NodeProps<FlowMapNode['data']>) {
+interface ServiceNodeProps extends NodeProps<FlowMapNode['data']> {
+  isExpanded: boolean;
+  onExpand: () => void;
+}
+
+function ServiceNodeComponent({ data, selected, isExpanded, onExpand }: ServiceNodeProps) {
   const handleExpandClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    data.onToggleCollapse?.();
-  }, [data.onToggleCollapse]);
+    onExpand();
+  }, [onExpand]);
 
   const isActive = data.service?.status === 'ACTIVE';
 
@@ -48,28 +53,26 @@ function ServiceNodeComponent({ data, selected }: NodeProps<FlowMapNode['data']>
       )}
       
       {/* Node Content */}
-      <div className={`node-content rounded-full bg-white border-2 ${selected ? 'border-blue-500' : 'border-gray-200'} p-4 min-w-[100px] min-h-[100px] flex items-center justify-center relative`}>
-        <div className="text-center">
-          <div className="font-bold">{data.label}</div>
-          <div className="text-sm">{data.service?.appInstanceId}</div>
-        </div>
-
+      <div
+        className={`
+          relative flex flex-col items-center justify-center
+          w-[120px] h-[120px] rounded-full border-2 shadow-sm
+          ${selected ? 'border-blue-500 shadow-blue-100' : 'border-gray-300'}
+          ${STATUS_STYLES[data.service?.status]}
+        `}
+      >
+        <div className="text-sm">{data.label}</div>
+        <div className="text-xs">{data.service?.appInstanceId}</div>
+        
         {/* Expand/Collapse Button */}
-        {data.onToggleCollapse && (
+        {(
           <button
             onClick={handleExpandClick}
-            className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-            title={data.isCollapsed ? "Expand" : "Collapse"}
+            className="absolute -right-1 bottom-2 p-1 rounded-full bg-white border-2 border-gray-300 hover:bg-gray-50"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="w-4 h-4 text-gray-600"
-              style={{ transform: data.isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
-            >
-              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-            </svg>
+            <span className="block font-bold text-gray-600 leading-none" style={{ fontSize: '16px' }}>
+              {isExpanded ? '−' : '+'}
+            </span>
           </button>
         )}
       </div>

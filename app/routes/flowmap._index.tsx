@@ -1,123 +1,49 @@
-import { json } from "@remix-run/node";
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useSearchParams } from "@remix-run/react";
 import { FlowMap } from "~/components/FlowMap";
 import { SearchFlow } from "~/components/FlowMap/SearchFlow";
-import { searchServicesAndInterfaces } from "~/models/flowmap.server";
-import type { FlowMapNode, FlowMapEdge, FlowMapData } from "~/types/flowMap";
+import type { LoaderData } from "~/types/flowMap";
+import { handleError } from '~/utils/validation.server';
 
-interface LoaderData {
-  nodes: FlowMapNode[];
-  edges: FlowMapEdge[];
-  searchTerm: string | null;
-  serviceFound: boolean;
-}
-
-export async function loader({ request }: { request: Request }) {
-  const url = new URL(request.url);
-  const searchTerm = url.searchParams.get("search");
-
-  if (!searchTerm) {
-    return json<LoaderData>({ 
-      nodes: [], 
-      edges: [], 
-      searchTerm: null,
-      serviceFound: true
-    });
-  }
-
-  const { services, interfaces } = await searchServicesAndInterfaces(searchTerm);
-
-  // If no services found, return early
-  if (services.length === 0) {
-    return json<LoaderData>({
-      nodes: [],
-      edges: [],
-      searchTerm,
-      serviceFound: false
-    });
-  }
-
-  // Transform services into nodes
-  const nodes: FlowMapNode[] = services.map(service => ({
-    id: service.appInstanceId,
-    type: 'service',
-    data: {
-      label: service.serviceName || service.appInstanceId,
-      service
-    },
-    position: { x: 0, y: 0 } // Initial position, will be laid out by useFlowState
-  }));
-
-  // Group interfaces by service pairs (regardless of direction)
-  const interfaceGroups = interfaces.reduce((groups, intf) => {
-    // Create a consistent key for the service pair
-    const [serviceA, serviceB] = [intf.sendAppId, intf.receivedAppId].sort();
-    const key = `${serviceA}-${serviceB}`;
+export async function loader({ request }: LoaderFunctionArgs) {
+  try {
+    const url = new URL(request.url);
+    const searchTerm = url.searchParams.get("search");
+    const response = await fetch(`${url.origin}/api/flowmap?${searchTerm ? `search=${searchTerm}` : ''}`);
     
-    if (!groups[key]) {
-      groups[key] = {
-        forward: [], // sendAppId -> receivedAppId
-        reverse: [], // receivedAppId -> sendAppId
-        serviceA,
-        serviceB
-      };
+    if (!response.ok) {
+      throw new Error('Failed to fetch flow map data');
     }
-    
-    // Add interface to the appropriate direction array
-    if (intf.sendAppId === serviceA) {
-      groups[key].forward.push(intf);
-    } else {
-      groups[key].reverse.push(intf);
-    }
-    
-    return groups;
-  }, {} as Record<string, {
-    forward: Interface[],
-    reverse: Interface[],
-    serviceA: string,
-    serviceB: string
-  }>);
 
-  // Transform interface groups into edges
-  const edges: FlowMapEdge[] = Object.entries(interfaceGroups).map(([key, group]) => {
-    const { forward, reverse, serviceA, serviceB } = group;
-    const isBidirectional = forward.length > 0 && reverse.length > 0;
-    const allInterfaces = [...forward, ...reverse];
-    
-    return {
-      id: `edge-${key}`,
-      type: 'interface',
-      source: serviceA,
-      target: serviceB,
-      data: {
-        interfaces: allInterfaces,
-        isBidirectional,
-        forwardCount: forward.length,
-        reverseCount: reverse.length
-      }
-    };
-  });
-
-  return json<LoaderData>({ 
-    nodes, 
-    edges, 
-    searchTerm,
-    serviceFound: true
-  });
+    const data = await response.json();
+    return json<LoaderData>(data);
+  } catch (error) {
+    return handleError(error);
+  }
 }
 
 export default function FlowMapRoute() {
-  const { nodes, edges, searchTerm, serviceFound } = useLoaderData<LoaderData>();
+  const { nodes, edges, searchTerm, serviceFound, error } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
   const initialSearchTerm = searchParams.get("search") || "";
+
+  if (error) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center">
+        <p className="text-red-600">Error: {error}</p>
+      </div>
+    );
+  }
 
   if (!serviceFound && searchTerm) {
     return (
       <div className="absolute inset-0 flex items-center justify-center">
-        <p className="text-gray-600">
-          No services were found matching the search term: "{searchTerm}"
-        </p>
-        <SearchFlow initialSearchTerm={initialSearchTerm} />
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">
+            No services were found matching the search term: "{searchTerm}"
+          </p>
+          <SearchFlow initialSearchTerm={initialSearchTerm} />
+        </div>
       </div>
     );
   }

@@ -48,18 +48,14 @@ export async function searchServicesAndInterfaces(searchTerm: string) {
       const existingService = serviceMap.get(appId);
       
       if (existingService) {
-        return {
-          ...existingService,
-          isParent: appId === searchTerm
-        };
+        return existingService;
       }
       
       // Create a dummy service with app name
       return {
         appInstanceId: appId,
         serviceName: appName,
-        status: ServiceStatus.TBC,
-        isParent: appId === searchTerm
+        status: ServiceStatus.TBC
       } as ITService;
     });
 
@@ -78,10 +74,7 @@ export async function searchServicesAndInterfaces(searchTerm: string) {
 
   if (searchedService) {
     return {
-      services: [{
-        ...searchedService,
-        isParent: true
-      }],
+      services: [searchedService],
       interfaces: []
     };
   }

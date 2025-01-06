@@ -4,43 +4,40 @@ import { InterfaceStatus, Priority } from "./interfaces";
 
 // Node Types
 export interface FlowMapNode {
-  id: string;                 // Unique identifier (appInstanceId)
-  type: 'service';           // Node type for React Flow
-  position: {                // Position in the flow map
+  id: string;
+  type: 'service';
+  position: {
     x: number;
     y: number;
   };
   data: {
-    label: string;           // Display name
-    service: ITService;      // Original service data
-    status: ServiceStatus;   // Service status
-    isCollapsed?: boolean;   // Collapse state
-    onToggleCollapse?: () => void; // Function to toggle collapse state
-    isParent?: boolean;      // Whether this is the parent node
+    label: string;
+    service: ITService;
+    status: ServiceStatus;
+    isExpanded: boolean;
+    parentId?: string;
   };
 }
 
 // Edge Types
 export interface FlowMapEdge {
-  id: string;               // Unique identifier
-  source: string;           // Source node id (sendAppId)
-  target: string;           // Target node id (receivedAppId)
-  type: 'interface';        // Edge type for React Flow
-  animated: boolean;        // Animation state
+  id: string;
+  source: string;
+  target: string;
+  type: 'interface';
+  animated: boolean;
   sourceHandle?: string;
   targetHandle?: string;
   data: {
-    interface?: Interface;   // Single interface (legacy format)
     interfaces?: Interface[]; // Multiple interfaces (new format)
-    currentInterfaceIndex?: number; // Current interface index being viewed
     status: InterfaceStatus;
     priority: Priority;
-    sourceNode?: FlowMapNode;  // Add source node data
-    targetNode?: FlowMapNode;  // Add target node data
+    sourceNode?: FlowMapNode;
+    targetNode?: FlowMapNode;
   };
 }
 
-// Flow Map Data Structure
+// Base data structure for flow map
 export interface FlowMapData {
   nodes: FlowMapNode[];
   edges: FlowMapEdge[];
@@ -58,16 +55,29 @@ export interface EdgeClickData {
   interface: Interface;
 }
 
-// Visibility Management Types
-export interface NodeExpansionState {
-  isExpanded: boolean;
-  childNodes: Set<string>;
-  relatedEdges: Set<string>;
-  level: number;
+// Loader Data extends FlowMapData with additional fields
+export interface LoaderData extends FlowMapData {
+  searchTerm: string | null;
+  serviceFound: boolean;
+  error?: string;
 }
 
-export interface VisibilityManager {
-  expansionStates: Map<string, NodeExpansionState>;
-  visibleNodes: Set<string>;
-  visibleEdges: Set<string>;
+// Graph State Types
+export interface GraphState {
+  allNodes: Map<string, FlowMapNode>;
+  allEdges: Map<string, FlowMapEdge>;
+  visibilityMap: Map<string, boolean>;
+  expandedNodes: Set<string>;
+  nodeHierarchy: Map<string, Set<string>>; // parent -> children
+}
+
+export interface GraphStateActions { 
+  addNodes: (nodes: FlowMapNode[]) => void;
+  addEdges: (edges: FlowMapEdge[]) => void;
+  expandNode: (nodeId: string) => void;
+  collapseNode: (nodeId: string) => void;
+  isNodeExpanded: (nodeId: string) => boolean;
+  isNodeVisible: (nodeId: string) => boolean;
+  getVisibleNodes: () => FlowMapNode[];
+  getVisibleEdges: () => FlowMapEdge[];
 }

@@ -103,3 +103,21 @@
   font-size: 12px;
   fill: #64748b;
 }
+
+/* Flow container wrapper */
+.flow-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* React Flow container styles */
+.react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+.react-flow__container {
+  width: 100%;
+  height: 100%;
+}

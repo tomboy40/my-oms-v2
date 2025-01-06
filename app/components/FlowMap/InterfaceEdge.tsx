@@ -86,7 +86,7 @@ function InterfaceEdgeComponent({
             }}
             className="px-2 py-1 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-medium text-gray-600"
           >
-            {data.interfaces.length}
+            {data.interfaces?.length}
             {isBidirectional && ` (${data.forwardCount}↑/${data.reverseCount}↓)`}
           </div>
         </EdgeLabelRenderer>

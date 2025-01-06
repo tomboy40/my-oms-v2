@@ -9,7 +9,6 @@ interface UseFlowSearchOptions {
 export function useFlowSearch({ initialSearchTerm = '', onSearch }: UseFlowSearchOptions = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isExpanded, setIsExpanded] = useState(!!initialSearchTerm);
-  const navigation = useNavigation();
   const currentSearchTerm = searchParams.get('search') || '';
 
   // Initialize search params if initial term provided and no current search term
