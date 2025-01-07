@@ -3,27 +3,31 @@ import { useNavigate, useSubmit } from "@remix-run/react";
 import { Search, AlertCircle, RefreshCw } from "lucide-react";
 import { InterfaceTable } from "./interface-table";
 import { InterfaceSkeleton } from "./interface-skeleton";
-import type { Interface } from "@prisma/client";
+import type { Interface } from "~/types/db";
 
 interface SearchParams {
-  query: string;
-  limit: number;
-  offset: number;
+  query?: string;
+  page: number;
+  pageSize: number;
   sortBy: string;
   sortDirection: "asc" | "desc";
+  filters?: {
+    status?: string;
+    priority?: string;
+  };
 }
 
 interface SearchInterfaceProps {
-  initialData: Interface[];
-  total: number;
+  initialData?: Interface[];
+  total?: number;
   error?: string;
   searchParams: SearchParams;
 }
 
 const isValidAppId = (value: string) => /^\d+$/.test(value.trim());
 
-export function SearchInterface({ initialData, total, error, searchParams }: SearchInterfaceProps) {
-  const [inputValue, setInputValue] = useState(searchParams.query);
+export function SearchInterface({ initialData = [], total = 0, error, searchParams }: SearchInterfaceProps) {
+  const [inputValue, setInputValue] = useState(searchParams.query ?? "");
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
   const submit = useSubmit();
@@ -31,11 +35,25 @@ export function SearchInterface({ initialData, total, error, searchParams }: Sea
   const handleSearch = () => {
     if (!inputValue.trim()) return;
 
-    const params = new URLSearchParams({
-      ...searchParams,
-      query: inputValue.trim(),
-      offset: "0" // Reset to first page on new search
-    });
+    const params = new URLSearchParams();
+    
+    // Add search query
+    params.append('query', inputValue.trim());
+    
+    // Add pagination and sorting with defaults
+    params.append('page', '1'); // Reset to first page on new search
+    params.append('pageSize', searchParams.pageSize.toString());
+    params.append('sortBy', searchParams.sortBy);
+    params.append('sortDirection', searchParams.sortDirection);
+
+    // Add filters if they exist
+    if (searchParams.filters) {
+      Object.entries(searchParams.filters).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value);
+        }
+      });
+    }
 
     navigate(`?${params.toString()}`);
   };
@@ -71,13 +89,27 @@ export function SearchInterface({ initialData, total, error, searchParams }: Sea
     sortBy: string;
     sortDirection: "asc" | "desc";
   }) => {
-    const params = new URLSearchParams({
-      ...searchParams,
-      limit: newState.pageSize.toString(),
-      offset: ((newState.page - 1) * newState.pageSize).toString(),
-      sortBy: newState.sortBy,
-      sortDirection: newState.sortDirection
-    });
+    const params = new URLSearchParams();
+
+    // Add search query if it exists
+    if (inputValue.trim()) {
+      params.append('query', inputValue.trim());
+    }
+
+    // Add pagination and sorting
+    params.append('page', newState.page.toString());
+    params.append('pageSize', newState.pageSize.toString());
+    params.append('sortBy', newState.sortBy);
+    params.append('sortDirection', newState.sortDirection);
+
+    // Add filters if they exist
+    if (searchParams.filters) {
+      Object.entries(searchParams.filters).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value);
+        }
+      });
+    }
 
     navigate(`?${params.toString()}`);
   };
@@ -158,13 +190,13 @@ export function SearchInterface({ initialData, total, error, searchParams }: Sea
         <InterfaceTable
           data={initialData}
           total={total}
-          pageSize={searchParams.limit}
-          page={Math.floor(searchParams.offset / searchParams.limit) + 1}
-          sortBy={searchParams.sortBy as any}
+          pageSize={searchParams.pageSize}
+          page={searchParams.page}
+          sortBy={searchParams.sortBy}
           sortDirection={searchParams.sortDirection}
           onStateChange={handleTableStateChange}
         />
       )}
     </div>
   );
-} 
+}

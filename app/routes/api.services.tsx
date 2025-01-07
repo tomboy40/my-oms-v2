@@ -2,9 +2,9 @@ import { type LoaderFunctionArgs } from '@remix-run/node';
 import { z } from 'zod';
 import { handleError } from '~/utils/validation.server';
 import { successResponse, paginationParams } from '~/utils/api.server';
-import type { ITService } from '~/types/db';
-import type { Prisma } from '@prisma/client';
-import { prisma } from '~/utils/db.server';
+import { db } from '~/lib/db';
+import { itServices } from '../../drizzle/schema';
+import { eq, or, and, sql, desc, asc } from 'drizzle-orm';
 
 // Validation schemas
 const SearchParamsSchema = z.object({
@@ -20,35 +20,46 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const { limit, offset, sortBy, sortDirection } = paginationParams(request);
 
-    const whereClause: Prisma.ITServiceWhereInput = {
-      AND: [
-        searchParams.query ? {
-          OR: /^\d+$/.test(searchParams.query)
-            ? [{ appInstanceId: searchParams.query }]
-            : [
-                { serviceName: { contains: searchParams.query.toLowerCase() } },
-                { appInstanceName: { contains: searchParams.query.toLowerCase() } }
-              ]
-        } : {}
-      ]
-    };
+    // Build search conditions
+    const conditions = [];
+    
+    if (searchParams.query) {
+      if (/^\d+$/.test(searchParams.query)) {
+        conditions.push(eq(itServices.appInstanceId, searchParams.query));
+      } else {
+        const searchQuery = `%${searchParams.query.toLowerCase()}%`;
+        conditions.push(
+          or(
+            sql`LOWER(${itServices.serviceName}) LIKE ${searchQuery}`,
+            sql`LOWER(${itServices.appInstanceName}) LIKE ${searchQuery}`
+          )
+        );
+      }
+    }
 
-    const [services, total] = await Promise.all([
-      prisma.iTService.findMany({
-        where: whereClause,
-        take: limit,
-        skip: offset,
-        orderBy: sortBy && sortDirection 
-          ? { [sortBy]: sortDirection }
-          : { serviceName: 'asc' }
-      }),
-      prisma.iTService.count({ where: whereClause })
+    // Execute query with pagination
+    const [results, total] = await Promise.all([
+      db.select()
+        .from(itServices)
+        .where(conditions.length ? and(...conditions) : undefined)
+        .orderBy(sortDirection === 'desc' ? desc(itServices[sortBy || 'serviceName']) : asc(itServices[sortBy || 'serviceName']))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(itServices)
+        .where(conditions.length ? and(...conditions) : undefined)
+        .then(result => Number(result[0].count))
     ]);
 
-    return successResponse<{ services: ITService[]; total: number }>(
-      { services, total },
-      { total, limit, offset }
-    );
+    return successResponse({
+      services: results,
+      total,
+    }, {
+      total,
+      limit,
+      offset
+    });
+
   } catch (error) {
     return handleError(error);
   }

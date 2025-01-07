@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Download, RefreshCw } from "lucide-react";
 import * as Select from "@radix-ui/react-select";
-import type { ITService } from "@prisma/client";
+import type { ITService } from "~/types/db";
 import React from "react";
 
 const PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -20,7 +20,6 @@ const COLUMNS: Column[] = [
   { key: "itServiceOwner", label: "Service Owner" },
   { key: "itServiceOwnerEmail", label: "Owner Email" },
   { key: "appInstStatus", label: "Status" },
-  { key: "updatedAt", label: "Last Updated" },
   { key: "actions", label: "Actions" },
 ];
 
@@ -45,10 +44,10 @@ const EXPORT_COLUMNS: Column[] = [
   { key: "updatedAt", label: "Last Updated" },
 ];
 
-type DetailSection = {
+interface DetailSection {
   title: string;
   fields: Column[];
-};
+}
 
 const DETAIL_SECTIONS: DetailSection[] = [
   {
@@ -57,7 +56,6 @@ const DETAIL_SECTIONS: DetailSection[] = [
       { key: "appInstanceId", label: "Application ID" },
       { key: "appInstanceName", label: "Application Name" },
       { key: "serviceName", label: "Service Name" },
-      { key: "pladaServiceId", label: "PLADA Service ID" },
       { key: "appInstStatus", label: "Status" },
       { 
         key: "appCriticality", 
@@ -68,6 +66,7 @@ const DETAIL_SECTIONS: DetailSection[] = [
           return value;
         }
       },
+      { key: "environment", label: "Environment" },
       { key: "appDescription", label: "Description" },
     ],
   },
@@ -91,13 +90,10 @@ const DETAIL_SECTIONS: DetailSection[] = [
     ],
   },
   {
-    title: "Organization Information",
+    title: "Support Information",
     fields: [
-      { key: "serviceItOrg6", label: "Organization L6" },
-      { key: "serviceItOrg7", label: "Organization L7" },
-      { key: "serviceItOrg8", label: "Organization L8" },
-      { key: "serviceItOrg9", label: "Organization L9" },
       { key: "supportGroup", label: "Support Group" },
+      { key: "serviceItOrg9", label: "IT Org 9" },
     ],
   },
 ];
@@ -393,4 +389,4 @@ export function ServiceTable({
       </div>
     </div>
   );
-} 
+}

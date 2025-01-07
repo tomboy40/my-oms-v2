@@ -1,61 +1,70 @@
-import type { Interface } from "@prisma/client";
-import { prisma } from "~/utils/db.server";
+import { db } from "~/lib/db";
+import { interfaces } from "../../drizzle/schema";
+import { eq, or } from "drizzle-orm";
 import { InterfaceStatus, Priority } from "~/types/interfaces";
+import { sql } from "drizzle-orm";
 
 export async function findInterfacesByAppId(appId: string) {
-  return prisma.interface.findMany({
-    where: {
-      OR: [
-        { sendAppId: appId },
-        { receivedAppId: appId }
-      ]
-    },
-    select: { 
-      id: true,
-      sla: true,
-      priority: true,
-      remarks: true
-    }
-  });
-}
-
-export async function batchUpdateInactiveInterfaces(interfaceIds: string[]) {
-  return prisma.interface.updateMany({
-    where: { id: { in: interfaceIds } },
-    data: {
-      interfaceStatus: InterfaceStatus.INACTIVE,
-      updatedAt: new Date()
-    }
-  });
-}
-
-export async function batchUpsertInterfaces(interfaces: Array<Omit<Interface, "createdAt" | "updatedAt">>) {
-  const now = new Date();
-  return prisma.$transaction(
-    interfaces.map((iface) =>
-      prisma.interface.upsert({
-        where: { id: iface.id },
-        create: {
-          ...iface,
-          sla: 'TBD',
-          priority: Priority.LOW,
-          interfaceStatus: InterfaceStatus.ACTIVE,
-          remarks: null,
-          createdAt: now,
-          updatedAt: now,
-        },
-        update: {
-          ...iface,
-          // Preserve existing application-specific fields
-          sla: undefined,
-          priority: undefined,
-          interfaceStatus: undefined,
-          remarks: undefined,
-          updatedAt: now,
-        }
-      })
+  return db.select({
+    id: interfaces.id,
+    sla: interfaces.sla,
+    priority: interfaces.priority,
+    remarks: interfaces.remarks
+  })
+  .from(interfaces)
+  .where(
+    or(
+      eq(interfaces.sendAppId, appId),
+      eq(interfaces.receivedAppId, appId)
     )
   );
 }
 
-export type { Interface }; 
+export async function batchUpdateInactiveInterfaces(interfaceIds: string[]) {
+  return db.update(interfaces)
+    .set({
+      interfaceStatus: InterfaceStatus.INACTIVE,
+      updatedAt: new Date()
+    })
+    .where(
+      sql`${interfaces.id} IN ${interfaceIds}`
+    );
+}
+
+export async function batchUpsertInterfaces(
+  interfacesToUpsert: Array<Omit<typeof interfaces.$inferInsert, "createdAt" | "updatedAt">>
+) {
+  const now = new Date();
+  
+  // SQLite doesn't support upsert with multiple values, so we need to do them one by one
+  const results = [];
+  
+  for (const iface of interfacesToUpsert) {
+    const result = await db.insert(interfaces)
+      .values({
+        ...iface,
+        sla: 'TBD',
+        priority: Priority.LOW,
+        interfaceStatus: InterfaceStatus.ACTIVE,
+        remarks: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: interfaces.id,
+        set: {
+          ...iface,
+          updatedAt: now,
+        },
+        // Preserve existing application-specific fields
+        where: eq(interfaces.id, iface.id)
+      });
+      
+    results.push(result);
+  }
+  
+  return results;
+}
+
+// Export the interfaces type from the schema
+export type { interfaces };

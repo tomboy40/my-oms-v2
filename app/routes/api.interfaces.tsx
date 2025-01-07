@@ -1,10 +1,10 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { z } from 'zod';
-import { prisma } from '~/utils/db.server';
+import { db } from '~/lib/db';
+import { interfaces } from '../../drizzle/schema';
 import { handleError } from '~/utils/validation.server';
 import { successResponse, paginationParams } from '~/utils/api.server';
-import type { Interface } from '~/types/db';
-import type { Prisma } from '@prisma/client';
+import { eq, or, and, like, sql, desc, asc } from 'drizzle-orm';
 
 // Validation schemas
 const SearchParamsSchema = z.object({
@@ -23,7 +23,7 @@ const SearchParamsSchema = z.object({
 
 const UpdateSchema = z.object({
   id: z.string().min(1, "Interface ID is required"),
-  sla: z.string().min(1).optional(),
+  sla: z.string().nullable().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const).optional(),
   remarks: z.string().nullable(),
 });
@@ -37,40 +37,52 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const { limit, offset, sortBy, sortDirection } = paginationParams(request);
 
-    // Build search query using simple contains for both databases
-    const whereClause: Prisma.InterfaceWhereInput = {
-      AND: [
-        searchParams.query ? {
-          OR: /^\d+$/.test(searchParams.query)
-            ? [
-                { sendAppId: searchParams.query },
-                { receivedAppId: searchParams.query }
-              ]
-            : [
-                { interfaceName: { contains: searchParams.query.toLowerCase() } },
-                { sendAppName: { contains: searchParams.query.toLowerCase() } },
-                { receivedAppName: { contains: searchParams.query.toLowerCase() } }
-              ]
-        } : {}
-      ]
-    };
+    // Build search conditions
+    const conditions = [];
+    
+    if (searchParams.query) {
+      if (/^\d+$/.test(searchParams.query)) {
+        conditions.push(
+          or(
+            eq(interfaces.sendAppId, searchParams.query),
+            eq(interfaces.receivedAppId, searchParams.query)
+          )
+        );
+      } else {
+        const searchQuery = `%${searchParams.query.toLowerCase()}%`;
+        conditions.push(
+          or(
+            sql`LOWER(${interfaces.interfaceName}) LIKE ${searchQuery}`,
+            sql`LOWER(${interfaces.sendAppName}) LIKE ${searchQuery}`,
+            sql`LOWER(${interfaces.receivedAppName}) LIKE ${searchQuery}`
+          )
+        );
+      }
+    }
 
-    const [interfaces, total] = await Promise.all([
-      prisma.interface.findMany({
-        where: whereClause,
-        take: limit,
-        skip: offset,
-        orderBy: sortBy && sortDirection 
-          ? { [sortBy]: sortDirection }
-          : { interfaceName: 'asc' }
-      }),
-      prisma.interface.count({ where: whereClause })
+    // Execute query with pagination
+    const [results, total] = await Promise.all([
+      db.select()
+        .from(interfaces)
+        .where(conditions.length ? and(...conditions) : undefined)
+        .orderBy(sortDirection === 'desc' ? desc(interfaces[sortBy || 'updatedAt']) : asc(interfaces[sortBy || 'updatedAt']))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(interfaces)
+        .where(conditions.length ? and(...conditions) : undefined)
+        .then(result => Number(result[0].count))
     ]);
 
-    return successResponse<{ interfaces: Interface[]; total: number }>(
-      { interfaces, total },
-      { total, limit, offset }
-    );
+    return successResponse({
+      interfaces: results,
+      total,
+    }, {
+      total,
+      limit,
+      offset
+    });
+
   } catch (error) {
     return handleError(error);
   }
@@ -100,26 +112,33 @@ export async function action({ request }: ActionFunctionArgs) {
     // Validate the data
     const validatedData = UpdateSchema.parse(data);
 
-    const interface_ = await prisma.interface.findUnique({
-      where: { id: validatedData.id }
-    });
+    // Check if interface exists
+    const existingInterface = await db.select()
+      .from(interfaces)
+      .where(eq(interfaces.id, validatedData.id))
+      .limit(1);
 
-    if (!interface_) {
+    if (!existingInterface.length) {
       return json({ error: 'Interface not found' }, { status: 404 });
     }
 
-    const updatedInterface = await prisma.interface.update({
-      where: { id: validatedData.id },
-      data: {
-        sla: validatedData.sla,
-        priority: validatedData.priority,
-        remarks: validatedData.remarks,
+    // Update the interface
+    await db.update(interfaces)
+      .set({
+        ...validatedData,
         updatedAt: new Date(),
-      },
+      })
+      .where(eq(interfaces.id, validatedData.id));
+
+    return successResponse({
+      id: validatedData.id,
+      sla: validatedData.sla,
+      priority: validatedData.priority,
+      remarks: validatedData.remarks,
+      updatedAt: new Date(),
     });
 
-    return successResponse(updatedInterface);
   } catch (error) {
     return handleError(error);
   }
-} 
+}

@@ -1,82 +1,93 @@
-import type { Prisma } from '@prisma/client';
+import { sql } from 'drizzle-orm';
+import { interfaces, itServices } from '../../drizzle/schema';
 import { env } from '~/env.server';
+import { desc, asc, like, and, or, SQL } from 'drizzle-orm';
 
 export interface SearchParams {
   query?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
   filters?: Record<string, string | undefined>;
 }
 
-export type WhereClause = Prisma.ITServiceWhereInput | Prisma.InterfaceWhereInput;
-export type OrderByClause = Prisma.ITServiceOrderByWithRelationInput | Prisma.InterfaceOrderByWithRelationInput;
-
 // Helper function to create case-insensitive contains condition
-function createContainsCondition(field: string, value: string) {
-  // For SQLite, convert both field and value to lowercase
-  if (env.DATABASE_URL.includes('sqlite')) {
-    return Prisma.sql`LOWER(${Prisma.raw(field)}) LIKE LOWER(${`%${value}%`})`;
-  }
-  // For PostgreSQL, use ilike
-  return {
-    contains: value,
-    mode: 'insensitive'
-  };
+function createContainsCondition(field: any, value: string): SQL {
+  // SQLite doesn't support ILIKE, so we use LOWER() with COALESCE for null safety
+  return sql`LOWER(COALESCE(${field}, '')) LIKE LOWER(${'%' + value + '%'})`;
 }
 
 export function buildSearchWhereClause(
   params: SearchParams,
   searchableFields: string[],
-  exactMatchFields: string[] = []
-): WhereClause {
-  const { query, filters = {} } = params;
-  const conditions: any[] = [];
+  exactMatchFields: string[] = [],
+  table: typeof interfaces | typeof itServices
+): SQL | undefined {
+  const conditions: SQL[] = [];
 
-  // Handle text search
-  if (query) {
-    if (/^\d+$/.test(query)) {
-      // If query is numeric, search in exact match fields
-      conditions.push({
-        OR: exactMatchFields.map(field => ({
-          [field]: query
-        }))
-      });
-    } else {
-      // If query is text, search in searchable fields with case-insensitive contains
-      conditions.push({
-        OR: searchableFields.map(field => ({
-          [field]: { contains: query.toLowerCase() }
-        }))
-      });
+  // Handle search query
+  if (params.query) {
+    const searchValue = params.query.trim();
+    const searchConditions: SQL[] = [];
+    
+    // Handle exact match fields first
+    if (exactMatchFields.length > 0) {
+      const exactMatches = exactMatchFields.map(field => 
+        sql`COALESCE(${table[field]}, '') = ${searchValue}`
+      );
+      searchConditions.push(...exactMatches);
+    }
+
+    // Handle searchable fields
+    if (searchableFields.length > 0) {
+      const likeConditions = searchableFields.map(field =>
+        createContainsCondition(table[field], searchValue)
+      );
+      searchConditions.push(...likeConditions);
+    }
+
+    if (searchConditions.length > 0) {
+      conditions.push(sql`(${or(...searchConditions)})`);
     }
   }
 
   // Handle filters
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value) {
-      conditions.push({ [key]: value });
-    }
-  });
+  if (params.filters) {
+    Object.entries(params.filters).forEach(([key, value]) => {
+      if (value && table[key]) {
+        conditions.push(sql`COALESCE(${table[key]}, '') = ${value}`);
+      }
+    });
+  }
 
-  return conditions.length > 0 ? { AND: conditions } : {};
+  // If no conditions, return undefined to get all records
+  if (conditions.length === 0) {
+    return undefined;
+  }
+
+  // Combine all conditions with AND
+  return and(...conditions);
 }
 
 export function buildSearchOrderBy(
   params: SearchParams,
-  defaultSortField: string
-): OrderByClause {
-  const { sortBy, sortDirection = 'asc' } = params;
-  return {
-    [sortBy || defaultSortField]: sortDirection
-  };
+  defaultSortField: string,
+  table: typeof interfaces | typeof itServices
+): SQL {
+  const { sortBy = defaultSortField, sortDirection = 'asc' } = params;
+  const field = table[sortBy];
+  // Use simple ordering since SQLite doesn't support NULLS LAST
+  return sortDirection === 'asc' 
+    ? sql`${field} ${sql.raw('ASC')}` 
+    : sql`${field} ${sql.raw('DESC')}`;
 }
 
-export function buildPaginationParams(params: SearchParams): { limit: number; offset: number } {
-  const limit = Math.min(Number(params.limit) || 10, 100); // Cap at 100 items per page
-  const offset = Number(params.offset) || 0;
-  return { limit, offset };
+export function buildPaginationParams(params: SearchParams) {
+  return {
+    limit: params.pageSize,
+    offset: (params.page - 1) * params.pageSize
+  };
 }
 
 export function validateSearchParams(
@@ -86,25 +97,26 @@ export function validateSearchParams(
 ): SearchParams {
   const validatedParams: SearchParams = {
     query: params.query,
-    limit: Math.min(Number(params.limit) || 10, 100),
-    offset: Number(params.offset) || 0,
-    sortDirection: params.sortDirection === 'desc' ? 'desc' : 'asc'
+    page: Math.max(1, params.page || 1),
+    pageSize: Math.min(100, Math.max(1, params.pageSize || 10)),
+    sortBy: params.sortBy && allowedSortFields.includes(params.sortBy)
+      ? params.sortBy
+      : allowedSortFields[0],
+    sortDirection: params.sortDirection === 'desc' ? 'desc' : 'asc',
+    filters: {}
   };
 
-  // Validate sort field
-  if (params.sortBy && allowedSortFields.includes(params.sortBy)) {
-    validatedParams.sortBy = params.sortBy;
-  }
-
-  // Validate filters
+  // Validate filters if they exist
   if (params.filters) {
-    validatedParams.filters = {};
-    Object.entries(params.filters).forEach(([key, value]) => {
-      if (allowedFilters.includes(key) && value !== undefined) {
-        validatedParams.filters![key] = value;
-      }
-    });
+    validatedParams.filters = Object.fromEntries(
+      Object.entries(params.filters)
+        .filter(([key, value]) => 
+          allowedFilters.includes(key) && 
+          value !== undefined && 
+          value !== ''
+        )
+    );
   }
 
   return validatedParams;
-} 
+}

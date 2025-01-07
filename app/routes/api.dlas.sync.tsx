@@ -4,7 +4,10 @@ import { validateRequest, handleError } from '~/utils/validation.server';
 import { successResponse } from '~/utils/api.server';
 import { DLASService } from '~/services/dlas.server';
 import { type DLASInterface, DLASInterfaceTransformSchema } from "~/types/dlas";
-import { findInterfacesByAppId, batchUpdateInactiveInterfaces, batchUpsertInterfaces } from '~/models/interface.server';
+import { db } from '~/lib/db';
+import { interfaces } from '../../drizzle/schema';
+import { eq, or, inArray } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 const SyncParamsSchema = z.object({
   appId: z.string().min(1, "Application ID is required")
@@ -35,7 +38,14 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log('[DLAS Router] Starting synchronization for appId:', data.appId);
 
     // Get existing interfaces efficiently
-    const existingInterfaces = await findInterfacesByAppId(data.appId);
+    const existingInterfaces = await db.select()
+      .from(interfaces)
+      .where(
+        or(
+          eq(interfaces.sendAppId, data.appId),
+          eq(interfaces.receivedAppId, data.appId)
+        )
+      );
 
     // Fetch and process DLAS data
     const dlasResponse = await DLASService.fetchInterfaces(data.appId);
@@ -49,74 +59,88 @@ export async function action({ request }: ActionFunctionArgs) {
     console.time('Transform Data');
     const transformedInterfaces = await Promise.all(
       rawInterfaces.map(async (iface: DLASInterface) => {
-        if (!iface.EIMInterfaceID) {
-          console.warn('[DLAS Router] Interface missing EIMInterfaceID:', iface);
-        }
-
-        try {
-          const transformed = DLASInterfaceTransformSchema.parse(iface);
-          return {
-            ...transformed,
-            id: await DLASService.generateInterfaceId(iface)
-          };
-        } catch (error) {
-          console.error('[DLAS Router] Failed to transform interface:', iface, error);
-          return null;
-        }
+        const validatedData = await DLASInterfaceTransformSchema.parseAsync(iface);
+        const existingInterface = existingInterfaces.find(existing => existing.id === validatedData.id);
+        return {
+          ...validatedData,
+          // Preserve existing application-specific fields if they exist
+          ...(existingInterface ? {
+            createdAt: existingInterface.createdAt,
+            updatedAt: existingInterface.updatedAt,
+            isActive: true
+          } : {
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true
+          })
+        };
       })
     );
     console.timeEnd('Transform Data');
 
-    // Filter out failed transformations
-    const validInterfaces = transformedInterfaces.filter((iface): iface is NonNullable<typeof iface> => iface !== null);
+    // Calculate interfaces to be marked as inactive
+    const activeInterfaceIds = new Set(transformedInterfaces.map(iface => iface.id));
+    const inactiveInterfaceIds = existingInterfaces
+      .filter(iface => !activeInterfaceIds.has(iface.id))
+      .map(iface => iface.id);
 
-    // Create maps for efficient lookups
-    const newInterfaceIds = new Set(validInterfaces.map(i => i.id));
-
-    // Identify interfaces to deactivate
-    const inactiveIds = existingInterfaces
-      .map(i => i.id)
-      .filter(id => !newInterfaceIds.has(id));
-
-    // Perform batch operations
-    console.time('DB Operations');
-    const [deactivatedCount, upsertedInterfaces] = await Promise.all([
-      inactiveIds.length > 0 ? batchUpdateInactiveInterfaces(inactiveIds) : Promise.resolve(0),
-      validInterfaces.length > 0 ? batchUpsertInterfaces(validInterfaces) : Promise.resolve([])
-    ]);
-    console.timeEnd('DB Operations');
-
-    // Calculate accurate stats
-    const stats = {
-      processed: validInterfaces.length + inactiveIds.length,
-      created: validInterfaces.length - (existingInterfaces.length - inactiveIds.length),
-      updated: existingInterfaces.length - inactiveIds.length,
-      removed: inactiveIds.length
-    };
-
-    // Determine appropriate message based on operation results
-    let message = 'Interfaces synchronized successfully';
-    let error: string | undefined;
-
-    if (validInterfaces.length === 0 && inactiveIds.length > 0) {
-      message = 'No active interfaces found in DLAS, existing interfaces marked as inactive';
-      error = 'No interfaces found in DLAS';
-    } else if (validInterfaces.length === 0) {
-      message = 'No interfaces found in DLAS';
-      error = 'No interfaces found in DLAS';
-    } else if (transformedInterfaces.length !== validInterfaces.length) {
-      message = 'Some interfaces failed to transform';
-      error = 'Partial sync completed with errors';
+    // Batch update inactive interfaces
+    if (inactiveInterfaceIds.length > 0) {
+      await db.update(interfaces)
+        .set({ 
+          isActive: false,
+          updatedAt: new Date()
+        })
+        .where(inArray(interfaces.id, inactiveInterfaceIds));
     }
 
+    // Batch upsert transformed interfaces
+    if (transformedInterfaces.length > 0) {
+      for (const iface of transformedInterfaces) {
+        await db.insert(interfaces)
+          .values({
+            id: iface.id,
+            interfaceName: iface.interfaceName,
+            sendAppId: iface.sendAppId,
+            sendAppName: iface.sendAppName,
+            receivedAppId: iface.receivedAppId,
+            receivedAppName: iface.receivedAppName,
+            status: iface.status,
+            direction: iface.direction,
+            eimInterfaceId: iface.eimInterfaceId,
+            transferType: iface.transferType,
+            frequency: iface.frequency,
+            technology: iface.technology,
+            pattern: iface.pattern,
+            relatedDrilldownKey: iface.relatedDrilldownKey,
+            demiseDate: iface.demiseDate,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true
+          })
+          .onConflictDoUpdate({
+            target: interfaces.id,
+            set: {
+              updatedAt: new Date(),
+              isActive: true
+            }
+          });
+      }
+    }
+
+    // Return success response with stats
     return successResponse<SyncResponse>({
-      message,
-      stats,
-      error
+      message: 'Synchronization completed successfully',
+      stats: {
+        processed: rawInterfaces.length,
+        created: transformedInterfaces.length - existingInterfaces.length,
+        updated: Math.min(transformedInterfaces.length, existingInterfaces.length),
+        removed: inactiveInterfaceIds.length
+      }
     });
 
   } catch (error) {
-    console.error('[DLAS Router] Sync error:', error);
+    console.error('[DLAS Router] Error during synchronization:', error);
     return handleError(error);
   }
 }

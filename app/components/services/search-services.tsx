@@ -2,14 +2,19 @@ import { useState } from "react";
 import { useNavigate } from "@remix-run/react";
 import { Search, AlertCircle, RefreshCw } from "lucide-react";
 import { ServiceTable } from "./service-table";
-import type { ITService } from "@prisma/client";
+import type { ITService } from "~/types/db";
 
 interface SearchParams {
   query: string;
-  limit: number;
-  offset: number;
   sortBy: string;
   sortDirection: "asc" | "desc";
+  page: number;
+  pageSize: number;
+  filters?: {
+    appInstStatus?: string;
+    environment?: string;
+    appCriticality?: string;
+  };
 }
 
 interface SearchServicesProps {
@@ -33,10 +38,21 @@ export function SearchServices({ initialData, total, error, searchParams }: Sear
     if (!inputValue.trim()) return;
 
     const params = new URLSearchParams({
-      ...searchParams,
       query: inputValue.trim(),
-      offset: "0" // Reset to first page on new search
+      page: "1", // Reset to first page on new search
+      pageSize: searchParams.pageSize.toString(),
+      sortBy: searchParams.sortBy,
+      sortDirection: searchParams.sortDirection
     });
+
+    // Add filters if they exist
+    if (searchParams.filters) {
+      Object.entries(searchParams.filters).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value);
+        }
+      });
+    }
 
     navigate(`?${params.toString()}`);
   };
@@ -72,13 +88,27 @@ export function SearchServices({ initialData, total, error, searchParams }: Sear
     sortBy: string;
     sortDirection: "asc" | "desc";
   }) => {
-    const params = new URLSearchParams({
-      ...searchParams,
-      limit: newState.pageSize.toString(),
-      offset: ((newState.page - 1) * newState.pageSize).toString(),
-      sortBy: newState.sortBy,
-      sortDirection: newState.sortDirection
-    });
+    const params = new URLSearchParams();
+
+    // Add search query if it exists
+    if (inputValue.trim()) {
+      params.append('query', inputValue.trim());
+    }
+
+    // Add pagination and sorting
+    params.append('page', newState.page.toString());
+    params.append('pageSize', newState.pageSize.toString());
+    params.append('sortBy', newState.sortBy);
+    params.append('sortDirection', newState.sortDirection);
+
+    // Add filters if they exist
+    if (searchParams.filters) {
+      Object.entries(searchParams.filters).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value);
+        }
+      });
+    }
 
     navigate(`?${params.toString()}`);
   };
@@ -171,8 +201,8 @@ export function SearchServices({ initialData, total, error, searchParams }: Sear
         <ServiceTable
           data={initialData}
           total={total}
-          pageSize={searchParams.limit}
-          page={Math.floor(searchParams.offset / searchParams.limit) + 1}
+          pageSize={searchParams.pageSize}
+          page={searchParams.page}
           sortBy={searchParams.sortBy}
           sortDirection={searchParams.sortDirection}
           searchQuery={searchParams.query}
@@ -183,4 +213,4 @@ export function SearchServices({ initialData, total, error, searchParams }: Sear
       )}
     </div>
   );
-} 
+}

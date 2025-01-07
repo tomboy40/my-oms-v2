@@ -1,26 +1,2 @@
-import { PrismaClient } from '@prisma/client';
-
-let prisma: PrismaClient;
-
-declare global {
-  var __db__: PrismaClient;
-}
-
-// This is needed because in development we don't want to restart
-// the server with every change, but we want to make sure we don't
-// create a new connection to the DB with every change either.
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
-} else {
-  if (!global.__db__) {
-    global.__db__ = new PrismaClient();
-  }
-  prisma = global.__db__;
-  prisma.$connect();
-}
-
-// Export the prisma instance
-export { prisma };
-
-// Export type definitions
-export type { Interface, ITService } from '@prisma/client';
+// This file is deprecated. Use ~/lib/db.ts instead
+export { db } from '~/lib/db';

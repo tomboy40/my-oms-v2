@@ -1,4 +1,17 @@
 import { z } from "zod";
+import { createHash } from 'crypto';
+
+// Utility function to generate interface ID
+function generateInterfaceId(iface: z.infer<typeof DLASInterfaceSchema>): string {
+  const keyFields = [
+    iface.SendAppID,
+    iface.ReceivedAppID,
+    iface.EIMInterfaceID || '',
+    iface.InterfaceName || iface.EIMInterfaceName || ''
+  ].join('|');
+  
+  return createHash('sha256').update(keyFields).digest('hex');
+}
 
 // Zod schema for environment variables
 export const envSchema = z.object({
@@ -33,6 +46,7 @@ export const DLASResponseSchema = z.object({
 
 // Transform schema for converting DLAS interface to our interface format
 export const DLASInterfaceTransformSchema = DLASInterfaceSchema.transform((iface) => ({
+  id: generateInterfaceId(iface),
   eimInterfaceId: iface.EIMInterfaceID,
   interfaceName: iface.InterfaceName ?? iface.EIMInterfaceName ?? '',
   direction: iface.Direction,

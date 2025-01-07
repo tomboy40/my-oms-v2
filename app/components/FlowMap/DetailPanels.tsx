@@ -1,4 +1,4 @@
-import type { ITService, Interface } from "@prisma/client";
+import type { ITService, Interface } from "~/types/db";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DetailPanelProps {

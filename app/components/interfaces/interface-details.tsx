@@ -3,7 +3,7 @@ import { useFetcher } from "@remix-run/react";
 import * as Label from "@radix-ui/react-label";
 import * as Select from "@radix-ui/react-select";
 import { ChevronDown } from "lucide-react";
-import type { Interface } from "@prisma/client";
+import type { Interface } from "~/types/db";
 
 interface InterfaceDetailsProps {
   interface: Interface;
@@ -15,6 +15,7 @@ export function InterfaceDetails({ interface: iface }: InterfaceDetailsProps) {
     sla: iface.sla ?? "",
     priority: iface.priority ?? "LOW",
     remarks: iface.remarks ?? "",
+    status: iface.status ?? "ACTIVE",
   });
 
   const fetcher = useFetcher();
@@ -49,6 +50,7 @@ export function InterfaceDetails({ interface: iface }: InterfaceDetailsProps) {
               type="text"
               value={formData.sla}
               onChange={(e) => setFormData(prev => ({ ...prev, sla: e.target.value }))}
+
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="Enter SLA"
             />
@@ -101,6 +103,7 @@ export function InterfaceDetails({ interface: iface }: InterfaceDetailsProps) {
               id="remarks"
               value={formData.remarks}
               onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
               rows={3}
               placeholder="Enter remarks"
@@ -178,4 +181,4 @@ export function InterfaceDetails({ interface: iface }: InterfaceDetailsProps) {
       )}
     </div>
   );
-} 
+}

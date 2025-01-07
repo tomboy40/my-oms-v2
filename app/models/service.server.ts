@@ -1,37 +1,43 @@
-import type { ITService } from "@prisma/client";
-import { prisma } from "~/utils/db.server";
+import { db } from "~/lib/db";
+import { itServices } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { ServiceStatus } from "~/types/services";
 
 export async function getITService(appInstanceId: string) {
-  return prisma.iTService.findUnique({
-    where: { appInstanceId },
-    select: { 
-      appInstanceId: true,
-      status: true
-    }
-  });
+  return db.select({
+    appInstanceId: itServices.appInstanceId,
+    status: itServices.status
+  })
+  .from(itServices)
+  .where(eq(itServices.appInstanceId, appInstanceId))
+  .limit(1)
+  .then(results => results[0] || null);
 }
 
-export async function createITService(data: Omit<ITService, "createdAt" | "updatedAt">) {
+export async function createITService(
+  data: Omit<typeof itServices.$inferInsert, "createdAt" | "updatedAt">
+) {
   const now = new Date();
-  return prisma.iTService.create({
-    data: {
+  return db.insert(itServices)
+    .values({
       ...data,
       status: ServiceStatus.ACTIVE,
       createdAt: now,
       updatedAt: now,
-    },
-  });
+    });
 }
 
-export async function updateITService(appInstanceId: string, data: Partial<Omit<ITService, "appInstanceId" | "createdAt" | "updatedAt">>) {
-  return prisma.iTService.update({
-    where: { appInstanceId },
-    data: {
+export async function updateITService(
+  appInstanceId: string, 
+  data: Partial<Omit<typeof itServices.$inferInsert, "appInstanceId" | "createdAt" | "updatedAt">>
+) {
+  return db.update(itServices)
+    .set({
       ...data,
       updatedAt: new Date(),
-    },
-  });
+    })
+    .where(eq(itServices.appInstanceId, appInstanceId));
 }
 
-export type { ITService }; 
+// Export the itServices type from the schema
+export type { itServices };

@@ -1,4 +1,4 @@
-import type { ITService, Interface } from "@prisma/client";
+import type { ITService, Interface } from "./db";
 import { ServiceStatus } from "./services";
 import { InterfaceStatus, Priority } from "./interfaces";
 
