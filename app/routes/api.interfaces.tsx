@@ -25,7 +25,7 @@ const SearchParamsSchema = z.object({
 
 const UpdateSchema = z.object({
   id: z.string().min(1, "Interface ID is required"),
-  sla: z.string().nullable().optional(),
+  sla: z.string().datetime().nullable().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const).optional(),
   remarks: z.string().nullable(),
 });

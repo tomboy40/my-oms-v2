@@ -61,3 +61,12 @@ export async function getDatasetsByInterfaceSerial(interfaceSerial: string) {
     .where(eq(datasets.interfaceSerial, interfaceSerial))
     .orderBy(datasets.datasetName, 'asc');
 }
+
+export async function updateDataset(id: string, updates: Partial<typeof datasets.$inferSelect>) {
+  return db.update(datasets)
+    .set({
+      ...updates,
+      updatedAt: new Date(),
+    })
+    .where(eq(datasets.id, id));
+}

@@ -20,6 +20,8 @@ export const DatasetSchema = z.object({
   }).nullable(),
   productTypes: z.array(z.string()).default([]),
   relatedDrilldownKey: z.array(z.string().uuid()).nullable(),
+  sla: z.string().nullable(),
+  lastArrivalTime: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
   createdBy: z.string().nullable(),
@@ -51,6 +53,8 @@ export const DLASDatasetTransformSchema = DLASDatasetSchema.transform((dataset) 
   primaryDataTerm: dataset.PrimaryDataTerm?.name,
   productTypes: dataset.ProductType ?? [],
   relatedDrilldownKey: dataset.RelatedDrilldownKey,
+  sla: null,
+  lastArrivalTime: null,
   createdAt: new Date(),
   updatedAt: new Date()
 }));
