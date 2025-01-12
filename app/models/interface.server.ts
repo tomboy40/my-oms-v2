@@ -42,21 +42,48 @@ export async function batchUpsertInterfaces(
   for (const iface of interfacesToUpsert) {
     const result = await db.insert(interfaces)
       .values({
-        ...iface,
-        sla: 'TBD',
-        priority: Priority.LOW,
-        interfaceStatus: InterfaceStatus.ACTIVE,
-        remarks: null,
+        id: iface.id,
+        status: iface.status,
+        direction: iface.direction,
+        eimInterfaceId: iface.eimInterfaceId,
+        interfaceName: iface.interfaceName ?? iface.eimInterfaceName ?? '',
+        sendAppId: iface.sendAppId,
+        sendAppName: iface.sendAppName,
+        receivedAppId: iface.receivedAppId,
+        receivedAppName: iface.receivedAppName,
+        transferType: iface.transferType,
+        frequency: iface.frequency,
+        technology: iface.technology ?? '',
+        pattern: iface.pattern ?? '',
+        demiseDate: iface.demiseDate ?? iface.endDate ?? null,
+        interfaceStatus: iface.interfaceStatus ?? InterfaceStatus.ACTIVE,
+        sla: iface.sla ?? 'TBD',
+        priority: iface.priority ?? Priority.LOW,
+        remarks: iface.remarks ?? null,
+        relatedDrilldownKey: iface.relatedDrilldownKey ?? null,
         createdAt: now,
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: interfaces.id,
         set: {
-          ...iface,
+          status: iface.status,
+          direction: iface.direction,
+          eimInterfaceId: iface.eimInterfaceId,
+          interfaceName: iface.interfaceName ?? iface.eimInterfaceName ?? '',
+          sendAppId: iface.sendAppId,
+          sendAppName: iface.sendAppName,
+          receivedAppId: iface.receivedAppId,
+          receivedAppName: iface.receivedAppName,
+          transferType: iface.transferType,
+          frequency: iface.frequency,
+          technology: iface.technology ?? '',
+          pattern: iface.pattern ?? '',
+          demiseDate: iface.demiseDate ?? iface.endDate ?? null,
+          interfaceStatus: iface.interfaceStatus ?? InterfaceStatus.ACTIVE,
+          relatedDrilldownKey: iface.relatedDrilldownKey ?? null,
           updatedAt: now,
         },
-        // Preserve existing application-specific fields
         where: eq(interfaces.id, iface.id)
       });
       

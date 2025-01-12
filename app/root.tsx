@@ -8,6 +8,7 @@ import {
 import type { LinksFunction } from '@remix-run/node';
 import { RootLayout } from './components/layout/root-layout';
 import { ErrorBoundary as CustomErrorBoundary } from './components/error-boundary';
+import { SettingsProvider } from './contexts/settings-context';
 
 // Import Tailwind CSS
 import './tailwind.css';
@@ -31,9 +32,11 @@ export default function App() {
         <Links />
       </head>
       <body className="h-full">
-        <RootLayout>
-          <Outlet />
-        </RootLayout>
+        <SettingsProvider>
+          <RootLayout>
+            <Outlet />
+          </RootLayout>
+        </SettingsProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

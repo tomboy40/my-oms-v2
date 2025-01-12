@@ -6,14 +6,15 @@ import { db } from "~/lib/db";
 import { interfaces } from "../../drizzle/schema";
 import { 
   buildSearchWhereClause, 
-  buildSearchOrderBy, 
+  buildSearchOrderBy,
   validateSearchParams,
   type SearchParams
 } from "~/utils/search.server";
 import type { Interface } from "~/types/db";
 import { handleError } from '~/utils/validation.server';
 import { z } from 'zod';
-import { sql } from "drizzle-orm";
+import { sql, and, or, eq } from "drizzle-orm";
+import { parseSettings } from "~/utils/settings.server";
 
 interface LoaderData {
   interfaces: Interface[];
@@ -36,83 +37,91 @@ const ALLOWED_SORT_FIELDS = [
   'interfaceName',
   'sendAppName',
   'receivedAppName',
-  'status',
-  'priority',
+  'interfaceStatus',
   'updatedAt',
-] as const;
-
-const ALLOWED_FILTERS = [
-  'status',
-  'priority',
 ] as const;
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const url = new URL(request.url);
-    
-    // Get and validate pagination parameters
-    const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize')) || 10));
-    
-    const searchParams = {
+    const settings = parseSettings(request);
+
+    // Get search params and build where clause
+    const rawParams = {
       query: url.searchParams.get('query') || undefined,
-      page,
-      pageSize,
-      sortBy: url.searchParams.get('sortBy') || 'interfaceName',
-      sortDirection: (url.searchParams.get('sortDirection') as 'asc' | 'desc') || 'asc',
-      filters: {
-        status: url.searchParams.get('status') || undefined,
-        priority: url.searchParams.get('priority') || undefined,
-      }
+      page: Number(url.searchParams.get('page')) || 1,
+      pageSize: Number(url.searchParams.get('pageSize')) || 10,
+      sortBy: url.searchParams.get('sortBy') || undefined,
+      sortDirection: url.searchParams.get('sortDirection') as 'asc' | 'desc' | undefined,
     };
 
-    const validatedParams = validateSearchParams(
-      searchParams,
-      ALLOWED_SORT_FIELDS as unknown as string[],
-      ALLOWED_FILTERS as unknown as string[]
+    const searchParams = validateSearchParams(
+      rawParams,
+      [...ALLOWED_SORT_FIELDS],
+      [] // No filters needed
     );
 
-    // Calculate limit and offset from validated page and pageSize
-    const limit = validatedParams.pageSize;
-    const offset = (validatedParams.page - 1) * validatedParams.pageSize;
+    console.log('Search params:', searchParams);
 
-    // Debug log
-    console.log('Pagination:', { page: validatedParams.page, pageSize: validatedParams.pageSize, limit, offset });
+    const conditions: sql.SQL[] = [];
+    
+    // Add search conditions if any
+    if (searchParams.query) {
+      if (/^\d+$/.test(searchParams.query)) {
+        // If query is numeric, search in app IDs
+        conditions.push(
+          or(
+            eq(interfaces.sendAppId, searchParams.query.toString()),
+            eq(interfaces.receivedAppId, searchParams.query.toString())
+          )
+        );
+      } else {
+        // Otherwise search in text fields
+        const searchWhereClause = buildSearchWhereClause(
+          searchParams,
+          [...SEARCHABLE_FIELDS],
+          [...EXACT_MATCH_FIELDS],
+          interfaces
+        );
+        if (searchWhereClause) {
+          conditions.push(searchWhereClause);
+        }
+      }
+    }
+    
+    // Add inactive filter if enabled
+    if (settings.excludeInactiveInterface) {
+      conditions.push(sql`(${interfaces.interfaceStatus} = 'ACTIVE')`);
+    }
 
-    const whereClause = buildSearchWhereClause(
-      validatedParams,
-      SEARCHABLE_FIELDS as unknown as string[],
-      EXACT_MATCH_FIELDS as unknown as string[],
-      interfaces
-    );
+    // Build the final where clause
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const orderBy = buildSearchOrderBy(
-      validatedParams,
-      'interfaceName',
-      interfaces
-    );
+    console.log(`WHERE clause: ${whereClause?.sql || '(none)'}`);
 
     // Get total count
     const totalResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(interfaces)
-      .where(whereClause || sql`1=1`);
-
-    const total = Number(totalResult[0]?.count || 0);
+      .where(whereClause);
+    
+    const total = totalResult[0].count;
 
     // Get paginated results
     const results = await db
       .select()
       .from(interfaces)
-      .where(whereClause || sql`1=1`)
-      .orderBy(orderBy)
-      .limit(limit)
-      .offset(offset);
+      .where(whereClause)
+      .orderBy(...buildSearchOrderBy(
+        searchParams,
+        [...SEARCHABLE_FIELDS],
+        [],
+        interfaces
+      ))
+      .limit(searchParams.pageSize)
+      .offset((searchParams.page - 1) * searchParams.pageSize);
 
-    return json<LoaderData>({
-      interfaces: results,
-      total,
-    });
+    return json<LoaderData>({ interfaces: results, total });
 
   } catch (error) {
     console.error('Error loading interfaces:', error);
@@ -148,10 +157,6 @@ export default function InterfacesPage() {
         sortDirection: (searchParams.get('sortDirection') as 'asc' | 'desc') || 'asc',
         page: Number(searchParams.get('page')) || 1,
         pageSize: Number(searchParams.get('pageSize')) || 10,
-        filters: {
-          status: searchParams.get('status') || undefined,
-          priority: searchParams.get('priority') || undefined
-        }
       }}
     />
   );

@@ -9,6 +9,7 @@ import { eq, or, and, sql, desc, asc } from 'drizzle-orm';
 // Validation schemas
 const SearchParamsSchema = z.object({
   query: z.string().optional(),
+  excludeInactive: z.string().optional().transform(val => val === 'true'),
 });
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -16,6 +17,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const url = new URL(request.url);
     const searchParams = SearchParamsSchema.parse({
       query: url.searchParams.get('query'),
+      excludeInactive: url.searchParams.get('excludeInactive'),
     });
 
     const { limit, offset, sortBy, sortDirection } = paginationParams(request);
@@ -35,6 +37,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
           )
         );
       }
+    }
+
+    // Add exclude inactive condition if enabled
+    if (searchParams.excludeInactive) {
+      conditions.push(eq(itServices.appInstStatus, 'Active'));
     }
 
     // Execute query with pagination

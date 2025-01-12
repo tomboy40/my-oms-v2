@@ -13,12 +13,14 @@ const SearchParamsSchema = z.object({
   sortDirection: z.enum(['asc', 'desc']).optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().nonnegative().optional(),
+  excludeInactive: z.string().optional().transform(val => val === 'true'),
 }).transform(data => ({
   query: data.query || undefined,
   sortBy: data.sortBy,
   sortDirection: data.sortDirection || 'asc',
   limit: data.limit || 10,
   offset: data.offset || 0,
+  excludeInactive: data.excludeInactive,
 }));
 
 const UpdateSchema = z.object({
@@ -33,9 +35,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const url = new URL(request.url);
     const searchParams = SearchParamsSchema.parse({
       query: url.searchParams.get('query'),
+      sortBy: url.searchParams.get('sortBy'),
+      sortDirection: url.searchParams.get('sortDirection') as 'asc' | 'desc',
+      excludeInactive: url.searchParams.get('excludeInactive'),
     });
 
-    const { limit, offset, sortBy, sortDirection } = paginationParams(request);
+    const { limit, offset } = paginationParams(request);
 
     // Build search conditions
     const conditions = [];
@@ -60,17 +65,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     }
 
+    // Add exclude inactive condition if enabled
+    if (searchParams.excludeInactive) {
+      conditions.push(eq(interfaces.interfaceStatus, 'ACTIVE'));
+    }
+
+    // Build the final where clause
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
     // Execute query with pagination
     const [results, total] = await Promise.all([
       db.select()
         .from(interfaces)
-        .where(conditions.length ? and(...conditions) : undefined)
-        .orderBy(sortDirection === 'desc' ? desc(interfaces[sortBy || 'updatedAt']) : asc(interfaces[sortBy || 'updatedAt']))
+        .where(whereClause)
+        .orderBy(searchParams.sortDirection === 'desc' ? 
+          desc(interfaces[searchParams.sortBy || 'interfaceName']) : 
+          asc(interfaces[searchParams.sortBy || 'interfaceName']))
         .limit(limit)
         .offset(offset),
       db.select({ count: sql<number>`count(*)` })
         .from(interfaces)
-        .where(conditions.length ? and(...conditions) : undefined)
+        .where(whereClause)
         .then(result => Number(result[0].count))
     ]);
 

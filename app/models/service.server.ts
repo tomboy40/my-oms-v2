@@ -6,7 +6,7 @@ import { ServiceStatus } from "~/types/services";
 export async function getITService(appInstanceId: string) {
   return db.select({
     appInstanceId: itServices.appInstanceId,
-    status: itServices.status
+    appInstanceStatus: itServices.appInstStatus,
   })
   .from(itServices)
   .where(eq(itServices.appInstanceId, appInstanceId))
@@ -21,7 +21,6 @@ export async function createITService(
   return db.insert(itServices)
     .values({
       ...data,
-      status: ServiceStatus.ACTIVE,
       createdAt: now,
       updatedAt: now,
     });

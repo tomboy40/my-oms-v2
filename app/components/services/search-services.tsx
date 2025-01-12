@@ -3,6 +3,7 @@ import { useNavigate } from "@remix-run/react";
 import { Search, AlertCircle, RefreshCw } from "lucide-react";
 import { ServiceTable } from "./service-table";
 import type { ITService } from "~/types/db";
+import { useSettings } from "~/contexts/settings-context";
 
 interface SearchParams {
   query: string;
@@ -33,6 +34,7 @@ export function SearchServices({ initialData, total, error, searchParams }: Sear
   const [inputValue, setInputValue] = useState(searchParams.query);
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
+  const { excludeInactiveService } = useSettings();
 
   const handleSearch = () => {
     if (!inputValue.trim()) return;
@@ -42,8 +44,13 @@ export function SearchServices({ initialData, total, error, searchParams }: Sear
       page: "1", // Reset to first page on new search
       pageSize: searchParams.pageSize.toString(),
       sortBy: searchParams.sortBy,
-      sortDirection: searchParams.sortDirection
+      sortDirection: searchParams.sortDirection,
     });
+
+    // Add exclude inactive parameter only if enabled
+    if (excludeInactiveService) {
+      params.append('excludeInactive', 'true');
+    }
 
     // Add filters if they exist
     if (searchParams.filters) {
@@ -100,6 +107,11 @@ export function SearchServices({ initialData, total, error, searchParams }: Sear
     params.append('pageSize', newState.pageSize.toString());
     params.append('sortBy', newState.sortBy);
     params.append('sortDirection', newState.sortDirection);
+
+    // Add exclude inactive parameter only if enabled
+    if (excludeInactiveService) {
+      params.append('excludeInactive', 'true');
+    }
 
     // Add filters if they exist
     if (searchParams.filters) {

@@ -4,6 +4,7 @@ import { Search, AlertCircle, RefreshCw } from "lucide-react";
 import { InterfaceTable } from "./interface-table";
 import { InterfaceSkeleton } from "./interface-skeleton";
 import type { Interface } from "~/types/db";
+import { useSettings } from "~/contexts/settings-context";
 
 interface SearchParams {
   query?: string;
@@ -15,6 +16,7 @@ interface SearchParams {
     status?: string;
     priority?: string;
   };
+  excludeInactiveInterface?: boolean;
 }
 
 interface SearchInterfaceProps {
@@ -31,6 +33,7 @@ export function SearchInterface({ initialData = [], total = 0, error, searchPara
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
   const submit = useSubmit();
+  const { excludeInactiveInterface } = useSettings();
 
   const handleSearch = () => {
     if (!inputValue.trim()) return;
@@ -46,6 +49,11 @@ export function SearchInterface({ initialData = [], total = 0, error, searchPara
     params.append('sortBy', searchParams.sortBy);
     params.append('sortDirection', searchParams.sortDirection);
 
+    // Add exclude inactive parameter only if enabled
+    if (excludeInactiveInterface) {
+      params.append('excludeInactive', 'true');
+    }
+    
     // Add filters if they exist
     if (searchParams.filters) {
       Object.entries(searchParams.filters).forEach(([key, value]) => {
@@ -63,10 +71,12 @@ export function SearchInterface({ initialData = [], total = 0, error, searchPara
 
     setIsSyncing(true);
     try {
+      const formData = new FormData();
+      formData.append('appid', inputValue.trim());
+
       const response = await fetch("/api/dlas/sync", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appId: inputValue.trim() })
+        body: formData
       });
 
       if (!response.ok) {
@@ -101,6 +111,11 @@ export function SearchInterface({ initialData = [], total = 0, error, searchPara
     params.append('pageSize', newState.pageSize.toString());
     params.append('sortBy', newState.sortBy);
     params.append('sortDirection', newState.sortDirection);
+
+    // Add exclude inactive parameter only if enabled
+    if (excludeInactiveInterface) {
+      params.append('excludeInactive', 'true');
+    }
 
     // Add filters if they exist
     if (searchParams.filters) {

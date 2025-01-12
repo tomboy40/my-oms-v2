@@ -1,12 +1,11 @@
 import { memo, useCallback } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { FlowMapNode } from '~/types/flowMap';
-import { ServiceStatus } from '~/types/services';
 
 const STATUS_STYLES = {
-  [ServiceStatus.ACTIVE]: 'border-green-500 bg-green-50',
-  [ServiceStatus.INACTIVE]: 'border-red-500 bg-red-50',
-  [ServiceStatus.TBC]: 'border-yellow-500 bg-yellow-50'
+  ['Active']: 'border-green-500 bg-green-50',
+  ['Inactive']: 'border-red-500 bg-red-50',
+  ['TBC']: 'border-yellow-500 bg-yellow-50'
 } as const;
 
 const HANDLE_POSITIONS = [
@@ -31,7 +30,7 @@ function ServiceNodeComponent({ data, selected, isExpanded, onExpand }: ServiceN
     onExpand();
   }, [onExpand]);
 
-  const isActive = data.service?.status === 'ACTIVE';
+  const isActive = data.service?.appInstStatus === 'Active';
 
   return (
     <div className="relative">
@@ -58,7 +57,7 @@ function ServiceNodeComponent({ data, selected, isExpanded, onExpand }: ServiceN
           relative flex flex-col items-center justify-center
           w-[120px] h-[120px] rounded-full border-2 shadow-sm
           ${selected ? 'border-blue-500 shadow-blue-100' : 'border-gray-300'}
-          ${STATUS_STYLES[data.service?.status]}
+          ${STATUS_STYLES[data.service?.status ?? "TBC"]}
         `}
       >
         <div className="text-sm">{data.label}</div>

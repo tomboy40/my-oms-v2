@@ -17,6 +17,7 @@ const COLUMNS = [
   { key: "receivedAppName", label: "Receive App Name" },
   { key: "transferType", label: "Transfer Type" },
   { key: "frequency", label: "Frequency" },
+  { key: "demiseDate", label: "Demise Date" },
 ] as const;
 
 // Keep all columns for CSV export
@@ -249,4 +250,4 @@ export function InterfaceTable({
       </div>
     </div>
   );
-} 
+}

@@ -1,6 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useSearchParams, useNavigation } from "@remix-run/react";
-import { sql } from "drizzle-orm";
+import { sql, and } from "drizzle-orm";
 import { SearchServices } from "~/components/services/search-services";
 import { ServiceSkeleton } from "~/components/services/service-skeleton";
 import { db } from "~/lib/db";
@@ -12,6 +12,7 @@ import {
   validateSearchParams,
   type SearchParams,
 } from "~/utils/search.server";
+import { parseSettings } from "~/utils/settings.server";
 
 interface LoaderData {
   services: typeof itServices.$inferSelect[];
@@ -28,6 +29,7 @@ const SEARCHABLE_FIELDS = [
 ] as const;
 
 const EXACT_MATCH_FIELDS = [
+  'id',
   'appInstanceId',
   'pladaServiceId',
   'itServiceOwnerId',
@@ -53,82 +55,55 @@ const ALLOWED_FILTERS = [
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const url = new URL(request.url);
-    
-    // Get and validate pagination parameters
-    const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize')) || 10));
-    
-    const searchParams = {
-      query: url.searchParams.get('query') || undefined,
-      page,
-      pageSize,
-      sortBy: url.searchParams.get('sortBy') || 'serviceName',
-      sortDirection: (url.searchParams.get('sortDirection') as 'asc' | 'desc') || 'asc',
-      filters: {
-        appInstStatus: url.searchParams.get('appInstStatus') || undefined,
-        environment: url.searchParams.get('environment') || undefined,
-        appCriticality: url.searchParams.get('appCriticality') || undefined,
-      }
-    };
+    const settings = parseSettings(request);
 
-    const validatedParams = validateSearchParams(
-      searchParams,
-      ALLOWED_SORT_FIELDS as unknown as string[],
-      ALLOWED_FILTERS as unknown as string[]
-    );
-
-    // Calculate limit and offset from validated page and pageSize
-    const limit = validatedParams.pageSize;
-    const offset = (validatedParams.page - 1) * validatedParams.pageSize;
-
-    // Debug log
-    console.log('Pagination:', { page: validatedParams.page, pageSize: validatedParams.pageSize, limit, offset });
-
-    const whereClause = buildSearchWhereClause(
-      validatedParams,
-      SEARCHABLE_FIELDS as unknown as string[],
-      EXACT_MATCH_FIELDS as unknown as string[],
-      itServices
-    );
-
-    const orderBy = buildSearchOrderBy(
-      validatedParams,
-      'serviceName',
-      itServices
-    );
-
-    // Debug log
-    console.log('Search params:', {
-      query: validatedParams.query,
-      page: validatedParams.page,
-      pageSize: validatedParams.pageSize,
-      sortBy: validatedParams.sortBy,
-      sortDirection: validatedParams.sortDirection,
-      filters: validatedParams.filters
+    // Get search params and build where clause
+    const searchParams = validateSearchParams(url.searchParams, {
+      searchableFields: SEARCHABLE_FIELDS,
+      exactMatchFields: EXACT_MATCH_FIELDS,
+      allowedSortFields: ALLOWED_SORT_FIELDS,
+      allowedFilters: ALLOWED_FILTERS,
     });
+
+    const conditions: SQL[] = [];
+    
+    // Add search conditions if any
+    const searchWhereClause = buildSearchWhereClause(searchParams);
+    if (searchWhereClause) {
+      conditions.push(searchWhereClause);
+    }
+    
+    // Add inactive filter if enabled
+    if (settings.excludeInactiveService) {
+      conditions.push(sql`(${itServices.appInstStatus} = 'Active')`);
+    }
+
+    // Combine all conditions with AND
+    const whereClause = conditions.length > 0 ? sql`${and(...conditions)}` : undefined;
 
     // Get total count
     const totalResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(itServices)
       .where(whereClause || sql`1=1`);
-
-    const total = Number(totalResult[0]?.count || 0);
+    
+    const total = totalResult[0].count;
 
     // Get paginated results
-    const services = await db
+    const results = await db
       .select()
       .from(itServices)
       .where(whereClause || sql`1=1`)
-      .orderBy(orderBy)
-      .limit(limit)
-      .offset(offset);
+      .orderBy(...buildSearchOrderBy(
+        searchParams,
+        SEARCHABLE_FIELDS,
+        EXACT_MATCH_FIELDS,
+        itServices
+      ))
+      .limit(searchParams.pageSize)
+      .offset((searchParams.page - 1) * searchParams.pageSize);
 
-    return json<LoaderData>({
-      services,
-      total
-    });
-
+    return json<LoaderData>({ services: results, total });
   } catch (error) {
     console.error('Error loading services:', error);
     return json<LoaderData>({

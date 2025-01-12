@@ -1,11 +1,5 @@
 import { z } from "zod";
 
-export enum ServiceStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  TBC = 'TBC'
-}
-
 // Create a Zod schema that matches the existing ITService type
 export const ITServiceSchema = z.object({
   appInstanceId: z.string(),
@@ -27,7 +21,6 @@ export const ITServiceSchema = z.object({
   serviceItOrg8: z.string().optional(),
   serviceItOrg9: z.string().optional(),
   supportGroup: z.string().optional(),
-  status: z.nativeEnum(ServiceStatus).default(ServiceStatus.ACTIVE),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

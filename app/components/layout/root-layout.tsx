@@ -1,6 +1,9 @@
 import { Link, useLocation } from "@remix-run/react";
 import { Home, Server, GitBranch, Share2, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useSettings } from "~/contexts/settings-context";
+import * as Switch from "@radix-ui/react-switch";
 
 interface RootLayoutProps {
   children: React.ReactNode;
@@ -20,6 +23,7 @@ const navigation: NavigationItem[] = [
 
 export function RootLayout({ children }: RootLayoutProps) {
   const location = useLocation();
+  const { excludeInactiveService, excludeInactiveInterface, toggleExcludeInactiveService, toggleExcludeInactiveInterface } = useSettings();
 
   const isActiveRoute = (href: string): boolean => {
     if (href === "/") {
@@ -60,6 +64,71 @@ export function RootLayout({ children }: RootLayoutProps) {
                   );
                 })}
               </div>
+            </div>
+            <div className="flex items-center">
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <button
+                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100"
+                    aria-label="Settings"
+                  >
+                    <Settings className="w-5 h-5 text-gray-500" />
+                  </button>
+                </DropdownMenu.Trigger>
+
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content
+                    className="min-w-[220px] bg-white rounded-md shadow-lg border border-gray-200 p-2"
+                    sideOffset={5}
+                    align="end"
+                  >
+                    <div className="px-2 py-1.5">
+                      <h3 className="text-sm font-medium text-gray-900">Exclude Inactive</h3>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="exclude-service" className="text-sm text-gray-700">
+                            Service
+                          </label>
+                          <Switch.Root
+                            id="exclude-service"
+                            checked={excludeInactiveService}
+                            onCheckedChange={toggleExcludeInactiveService}
+                            className={`${
+                              excludeInactiveService ? 'bg-blue-600' : 'bg-gray-200'
+                            } relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                          >
+                            <Switch.Thumb
+                              className={`${
+                                excludeInactiveService ? 'translate-x-5' : 'translate-x-1'
+                              } inline-block h-3 w-3 transform rounded-full bg-white transition-transform`}
+                            />
+                          </Switch.Root>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="exclude-interface" className="text-sm text-gray-700">
+                            Interface
+                          </label>
+                          <Switch.Root
+                            id="exclude-interface"
+                            checked={excludeInactiveInterface}
+                            onCheckedChange={toggleExcludeInactiveInterface}
+                            className={`${
+                              excludeInactiveInterface ? 'bg-blue-600' : 'bg-gray-200'
+                            } relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                          >
+                            <Switch.Thumb
+                              className={`${
+                                excludeInactiveInterface ? 'translate-x-5' : 'translate-x-1'
+                              } inline-block h-3 w-3 transform rounded-full bg-white transition-transform`}
+                            />
+                          </Switch.Root>
+                        </div>
+                      </div>
+                    </div>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
             </div>
           </div>
         </div>

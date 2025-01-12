@@ -34,9 +34,11 @@ export function buildSearchWhereClause(
     // Handle exact match fields first
     if (exactMatchFields.length > 0) {
       const exactMatches = exactMatchFields.map(field => 
-        sql`COALESCE(${table[field]}, '') = ${searchValue}`
+        sql`${table[field]} = ${searchValue}`
       );
-      searchConditions.push(...exactMatches);
+      if (exactMatches.length > 0) {
+        searchConditions.push(or(...exactMatches));
+      }
     }
 
     // Handle searchable fields
@@ -44,11 +46,13 @@ export function buildSearchWhereClause(
       const likeConditions = searchableFields.map(field =>
         createContainsCondition(table[field], searchValue)
       );
-      searchConditions.push(...likeConditions);
+      if (likeConditions.length > 0) {
+        searchConditions.push(or(...likeConditions));
+      }
     }
 
     if (searchConditions.length > 0) {
-      conditions.push(sql`(${or(...searchConditions)})`);
+      conditions.push(or(...searchConditions));
     }
   }
 
@@ -56,7 +60,7 @@ export function buildSearchWhereClause(
   if (params.filters) {
     Object.entries(params.filters).forEach(([key, value]) => {
       if (value && table[key]) {
-        conditions.push(sql`COALESCE(${table[key]}, '') = ${value}`);
+        conditions.push(sql`${table[key]} = ${value}`);
       }
     });
   }
@@ -72,15 +76,22 @@ export function buildSearchWhereClause(
 
 export function buildSearchOrderBy(
   params: SearchParams,
-  defaultSortField: string,
+  searchableFields: string[],
+  exactMatchFields: string[] = [],
   table: typeof interfaces | typeof itServices
-): SQL {
-  const { sortBy = defaultSortField, sortDirection = 'asc' } = params;
-  const field = table[sortBy];
-  // Use simple ordering since SQLite doesn't support NULLS LAST
-  return sortDirection === 'asc' 
-    ? sql`${field} ${sql.raw('ASC')}` 
-    : sql`${field} ${sql.raw('DESC')}`;
+): SQL[] {
+  const { sortDirection = 'asc' } = params;
+  
+  // Determine the sort field, fallback to first searchable field if invalid
+  const sortField = params.sortBy && table[params.sortBy] 
+    ? params.sortBy 
+    : searchableFields[0];
+
+  return [
+    sortDirection === 'asc' 
+      ? asc(table[sortField])
+      : desc(table[sortField])
+  ];
 }
 
 export function buildPaginationParams(params: SearchParams) {

@@ -52,7 +52,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (!odsService) {
       if (existingService) {
-        await updateITService(data.appInstanceId, { ...existingService, status: ServiceStatus.INACTIVE });
+        await updateITService(data.appInstanceId, { ...existingService, appInstStatus: "Inactive" });
         message = 'Service marked as inactive as it no longer exists in ODS';
         error = 'No service found in ODS';
       } else {
@@ -61,7 +61,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
     } else {
       if (existingService) {
-        await updateITService(data.appInstanceId, { ...odsService, status: ServiceStatus.ACTIVE });
+        await updateITService(data.appInstanceId, odsService);
         message = 'Service updated successfully';
       } else {
         await createITService(odsService);
