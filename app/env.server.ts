@@ -5,6 +5,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string(),
   SESSION_SECRET: z.string(),
   DLAS_API_URL: z.string(),
+  DLAS_EVT_URL: z.string(),
   ODS_API_URL: z.string()
 });
 

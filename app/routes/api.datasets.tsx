@@ -4,7 +4,14 @@ import { getDatasetsByInterfaceSerial, updateDataset } from "~/models/dataset.se
 import { z } from "zod";
 
 const UpdateSchema = z.object({
-  id: z.string().uuid(),
+  ids: z.string().transform((str) => {
+    try {
+      const parsed = JSON.parse(str);
+      return z.array(z.string().uuid()).parse(parsed);
+    } catch {
+      throw new Error('Invalid dataset IDs');
+    }
+  }),
   sla: z.string().nullable(),
 });
 
@@ -34,7 +41,7 @@ export async function action({ request }: ActionFunctionArgs) {
     } else {
       const formData = await request.formData();
       data = {
-        id: formData.get("id"),
+        ids: formData.get("ids"),
         sla: formData.get("sla"),
       };
     }
@@ -42,14 +49,16 @@ export async function action({ request }: ActionFunctionArgs) {
     // Validate the data
     const validatedData = UpdateSchema.parse(data);
 
-    // Update the dataset
-    await updateDataset(validatedData.id, {
-      sla: validatedData.sla,
-    });
+    // Update all datasets in parallel
+    await Promise.all(
+      validatedData.ids.map(id => 
+        updateDataset(id, { sla: validatedData.sla })
+      )
+    );
 
     return json({ success: true });
   } catch (error) {
-    console.error('Error updating dataset:', error);
-    return json({ error: 'Failed to update dataset' }, { status: 500 });
+    console.error('Error updating datasets:', error);
+    return json({ error: 'Failed to update datasets' }, { status: 500 });
   }
 }

@@ -74,7 +74,7 @@ export function SearchInterface({ initialData = [], total = 0, error, searchPara
       const formData = new FormData();
       formData.append('appid', inputValue.trim());
 
-      const response = await fetch("/api/dlas/sync", {
+      const response = await fetch("/api/dlas/interfaces/sync", {
         method: "POST",
         body: formData
       });

@@ -21,7 +21,6 @@ export const interfaces = sqliteTable('Interface', {
   
   // Local Fields
   interfaceStatus: text('interfaceStatus').notNull().default('ACTIVE'),
-  sla: text('sla').default('TBD'),
   priority: text('priority').notNull().default('LOW'),
   remarks: text('remarks'),
   
@@ -72,15 +71,32 @@ export const datasets = sqliteTable('Dataset', {
   description: text('description'), // e.g., "UK Trade Data For Ccr Rwa Calculation"
   primaryDataTerm: text('primaryDataTerm'), // e.g., "Trade Data"
   productTypes: text('productTypes'), // JSON array of strings, e.g., ["credit"]
-  relatedDrilldownKey: text('relatedDrilldownKey'), // JSON array of UUIDs, e.g., ["3f7b884c-cc6e-4295-a610-0b730bd001a0"]
+  relatedDrilldownKey: text('relatedDrilldownKey'), // JSON array of UUIDs
+  sla: text('sla'), // Format: HH:mm in GMT
+  slaTimezone: text('slaTimezone').default('Europe/London').notNull(), // Default to London time
+  lastArrivalTime: text('lastArrivalTime'), // Format: YYYY-MM-DDThh:mm:ss.sss
   
   // Audit Fields
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  createdAt: text('createdAt').notNull(), // Format: YYYY-MM-DDThh:mm:ss.sss
+  updatedAt: text('updatedAt').notNull(), // Format: YYYY-MM-DDThh:mm:ss.sss
   createdBy: text('createdBy'),
   updatedBy: text('updatedBy'),
 }, (table) => {
   return {
     interfaceDatasetIdx: uniqueIndex('interface_dataset_idx').on(table.interfaceSerial, table.datasetName),
   };
+});
+
+// Event table schema
+export const events = sqliteTable('Event', {
+  msgId: text('msgId').primaryKey(),
+  businessDate: text('businessDate'), // Format: YYYY-MM-DD
+  createdDateTime: text('createdDateTime'), // Format: YYYY-MM-DDThh:mm:ss.sss
+  endNodeId: text('endNodeId'),
+  endNodeName: text('endNodeName'),
+  rawJson: text('rawJson'),
+  startNodeId: text('startNodeId'),
+  startNodeName: text('startNodeName'),
+  valid: text('valid'),
+  datasetId: text('datasetId'), // Reference to Dataset table's id
 });

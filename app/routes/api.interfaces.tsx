@@ -25,7 +25,6 @@ const SearchParamsSchema = z.object({
 
 const UpdateSchema = z.object({
   id: z.string().min(1, "Interface ID is required"),
-  sla: z.string().datetime().nullable().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const).optional(),
   remarks: z.string().nullable(),
 });
@@ -118,7 +117,6 @@ export async function action({ request }: ActionFunctionArgs) {
       const formData = await request.formData();
       data = {
         id: formData.get("id"),
-        sla: formData.get("sla"),
         priority: formData.get("priority"),
         remarks: formData.get("remarks"),
       };
@@ -147,7 +145,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return successResponse({
       id: validatedData.id,
-      sla: validatedData.sla,
       priority: validatedData.priority,
       remarks: validatedData.remarks,
       updatedAt: new Date(),

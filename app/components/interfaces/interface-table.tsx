@@ -27,7 +27,6 @@ const EXPORT_COLUMNS = [
   { key: "technology", label: "Technology" },
   { key: "interfaceStatus", label: "Interface Status" },
   { key: "priority", label: "Priority" },
-  { key: "sla", label: "SLA" },
   { key: "remarks", label: "Remarks" },
 ] as const;
 

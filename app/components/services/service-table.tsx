@@ -317,6 +317,7 @@ export function ServiceTable({
                             onClick={() => onSync?.(service.appInstanceId)}
                             disabled={isSyncing}
                             className="inline-flex items-center gap-1 px-2 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                            title="Sync from ODS"
                           >
                             {isSyncing ? (
                               <>

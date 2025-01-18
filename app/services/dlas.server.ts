@@ -1,6 +1,6 @@
 import { env } from "~/env.server";
-import type { DLASResponse, DLASInterface } from "~/types/dlas";
-import { DLASResponseSchema } from "~/types/dlas";
+import type { DLASResponse, DLASInterface, DLASEvent } from "~/types/dlas";
+import { DLASResponseSchema, DLASEventSchema } from "~/types/dlas";
 
 // Memoize the hash function for better performance
 const hashCache = new Map<string, string>();
@@ -88,6 +88,65 @@ export class DLASService {
     } catch (error) {
       console.error('[DLAS Service] Error fetching interfaces:', error);
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch from DLAS');
+    }
+
+  }
+
+  static async fetchEvents(relatedDrilldownKeys: string[]): Promise<DLASEvent[] | null> {
+    try {
+      if (!relatedDrilldownKeys.length) {
+        throw new Error("At least one RelatedDrilldownKey is required");
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      const response = await fetch(env.DLAS_EVT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(relatedDrilldownKeys),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`DLAS Events API error: ${response.statusText}`);
+      }
+
+      const rawData = await response.json();
+      
+      // Log the raw response for debugging
+      console.log('[DLAS Service] Raw Events API response:', JSON.stringify(rawData, null, 2));
+
+      // Parse each event in the array
+      if (Array.isArray(rawData)) {
+        const validatedEvents = await Promise.all(
+          rawData.map(async (event) => {
+            const validation = DLASEventSchema.safeParse(event);
+            if (validation.success) {
+              return validation.data;
+            }
+            console.error('[DLAS Service] Event validation error:', validation.error);
+            return null;
+          })
+        );
+
+        // Filter out any null values from failed validations
+        const events = validatedEvents.filter((event): event is DLASEvent => event !== null);
+
+        console.log(`[DLAS Service] Successfully parsed ${events.length} events`);
+        return events;
+      }
+
+      console.error('[DLAS Service] Expected array of events but got:', typeof rawData);
+      return null;
+
+    } catch (error) {
+      console.error('[DLAS Service] Error fetching events:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch events from DLAS');
     }
   }
 

@@ -7,7 +7,6 @@ import { sql } from "drizzle-orm";
 export async function findInterfacesByAppId(appId: string) {
   return db.select({
     id: interfaces.id,
-    sla: interfaces.sla,
     priority: interfaces.priority,
     remarks: interfaces.remarks
   })
@@ -57,7 +56,6 @@ export async function batchUpsertInterfaces(
         pattern: iface.pattern ?? '',
         demiseDate: iface.demiseDate ?? iface.endDate ?? null,
         interfaceStatus: iface.interfaceStatus ?? InterfaceStatus.ACTIVE,
-        sla: iface.sla ?? 'TBD',
         priority: iface.priority ?? Priority.LOW,
         remarks: iface.remarks ?? null,
         relatedDrilldownKey: iface.relatedDrilldownKey ?? null,

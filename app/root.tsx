@@ -9,6 +9,7 @@ import type { LinksFunction } from '@remix-run/node';
 import { RootLayout } from './components/layout/root-layout';
 import { ErrorBoundary as CustomErrorBoundary } from './components/error-boundary';
 import { SettingsProvider } from './contexts/settings-context';
+import { Toaster } from 'sonner';
 
 // Import Tailwind CSS
 import './tailwind.css';
@@ -39,6 +40,7 @@ export default function App() {
         </SettingsProvider>
         <ScrollRestoration />
         <Scripts />
+        <Toaster />
       </body>
     </html>
   );

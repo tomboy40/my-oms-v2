@@ -37,7 +37,6 @@ export const interfaceSchema = z.object({
   
   // Local Fields
   interfaceStatus: z.nativeEnum(InterfaceStatus).default(InterfaceStatus.ACTIVE),
-  sla: z.date().nullable().optional(),
   priority: z.nativeEnum(Priority).default(Priority.LOW),
   remarks: z.string().optional(),
   

@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import type { CityTimezone } from '~/types/timezone';
+import { CITY_TIMEZONES } from '~/types/timezone';
 
 const settingsSchema = z.object({
   excludeInactiveService: z.coerce.boolean().default(false),
   excludeInactiveInterface: z.coerce.boolean().default(false),
+  preferredTimezone: z.enum(Object.keys(CITY_TIMEZONES) as [string, ...string[]]).default('Hong Kong'),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -21,7 +24,6 @@ export function parseSettings(request: Request): Settings {
   const cookieHeader = request.headers.get('Cookie') || '';
   const cookies = parseCookies(cookieHeader);
 
-  // Get settings from localStorage via cookie
   let storedSettings: Settings | undefined;
   try {
     const omsSettings = cookies['oms-settings'];
@@ -32,16 +34,14 @@ export function parseSettings(request: Request): Settings {
     console.error('Failed to parse stored settings:', e);
   }
 
-  // URL params take precedence over stored settings
-  const hasExcludeInactive = url.searchParams.has('excludeInactive');
-  
   const settings = {
-    excludeInactiveService: hasExcludeInactive 
+    excludeInactiveService: url.searchParams.has('excludeInactive') 
       ? true 
       : storedSettings?.excludeInactiveService ?? false,
-    excludeInactiveInterface: hasExcludeInactive 
+    excludeInactiveInterface: url.searchParams.has('excludeInactive') 
       ? true 
       : storedSettings?.excludeInactiveInterface ?? false,
+    preferredTimezone: storedSettings?.preferredTimezone ?? 'Hong Kong',
   };
 
   return settingsSchema.parse(settings);

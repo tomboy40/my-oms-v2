@@ -60,6 +60,22 @@ export const DLASDatasetTransformSchema = DLASDatasetSchema.transform((dataset) 
 }));
 
 // Export types
-export type Dataset = z.infer<typeof DatasetSchema>;
+export interface Dataset {
+  id: string;
+  interfaceSerial: number;
+  status: string;
+  datasetStatus: string;
+  datasetName: string;
+  description?: string;
+  primaryDataTerm?: string;
+  productTypes: string;
+  relatedDrilldownKey?: string;
+  sla?: string;
+  lastArrivalTime?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
 export type DLASDataset = z.infer<typeof DLASDatasetSchema>;
 export type TransformedDLASDataset = z.infer<typeof DLASDatasetTransformSchema>;

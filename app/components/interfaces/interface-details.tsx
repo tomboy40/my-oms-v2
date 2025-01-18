@@ -15,6 +15,11 @@ interface InterfaceDetailsProps {
   onNavigate?: (to: string) => void;
 }
 
+// Add type for fetcher data
+interface FetcherData {
+  datasets?: Dataset[];
+}
+
 export function InterfaceDetails({ interface: iface, datasets = [], onNavigate }: InterfaceDetailsProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,16 +46,26 @@ export function InterfaceDetails({ interface: iface, datasets = [], onNavigate }
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
-  const fetcher = useFetcher();
+  const fetcher = useFetcher<FetcherData>();
   const isUpdating = fetcher.state !== "idle";
   const isLoading = fetcher.state === "loading";
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
-  // Update local datasets when fetcher data changes
+  // Update local datasets when fetcher state changes
   useEffect(() => {
-    if (fetcher.data?.datasets) {
-      setLocalDatasets(fetcher.data.datasets);
+    // Set hasAttemptedLoad to true when the fetcher completes its request
+    if (fetcher.state === "idle" && fetcher.data !== undefined) {
       setHasAttemptedLoad(true);
+    }
+  }, [fetcher.state, fetcher.data]);
+
+  // Update datasets when fetcher data changes
+  useEffect(() => {
+    if (fetcher.data !== undefined) {
+      console.log('Raw fetcher data:', fetcher.data);
+      const datasetsData = Array.isArray(fetcher.data.datasets) ? fetcher.data.datasets : [];
+      console.log('Datasets to set:', datasetsData);
+      setLocalDatasets(datasetsData);
     }
   }, [fetcher.data]);
 
@@ -64,7 +79,6 @@ export function InterfaceDetails({ interface: iface, datasets = [], onNavigate }
   // Check for unsaved changes
   useEffect(() => {
     const hasChanges = 
-      formData.sla !== originalData.sla ||
       formData.priority !== originalData.priority ||
       formData.remarks !== originalData.remarks;
     setHasUnsavedChanges(hasChanges);
@@ -144,7 +158,7 @@ export function InterfaceDetails({ interface: iface, datasets = [], onNavigate }
         method: "PUT",
         action: "/api/interfaces",
         encType: "application/json"
-      }
+      } as const
     );
     setOriginalData(formData);
     setEditingFields({ sla: false, priority: false, remarks: false });
@@ -241,6 +255,8 @@ export function InterfaceDetails({ interface: iface, datasets = [], onNavigate }
                         type="button"
                         onClick={() => handleFieldEdit("priority", true)}
                         className="inline-flex items-center text-gray-400 hover:text-gray-600"
+                        title="Edit priority"
+                        aria-label="Edit priority"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -307,6 +323,8 @@ export function InterfaceDetails({ interface: iface, datasets = [], onNavigate }
                         type="button"
                         onClick={() => handleFieldEdit("remarks", true)}
                         className="inline-flex items-center text-gray-400 hover:text-gray-600"
+                        title="Edit remarks"
+                        aria-label="Edit remarks"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -352,7 +370,7 @@ export function InterfaceDetails({ interface: iface, datasets = [], onNavigate }
           <div className="space-y-6">
             <InterfaceDatasets 
               datasets={localDatasets} 
-              isLoading={fetcher.state === "loading"} 
+              isLoading={!hasAttemptedLoad && fetcher.state !== "idle"} 
             />
           </div>
         </Tabs.Content>

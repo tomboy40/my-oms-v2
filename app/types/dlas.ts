@@ -1,21 +1,10 @@
 import { z } from "zod";
 import { createHash } from 'crypto';
 
-// Utility function to generate interface ID
-function generateInterfaceId(iface: z.infer<typeof DLASInterfaceSchema>): string {
-  const keyFields = [
-    iface.SendAppID,
-    iface.ReceivedAppID,
-    iface.EIMInterfaceID || '',
-    iface.InterfaceName || iface.EIMInterfaceName || ''
-  ].join('|');
-  
-  return createHash('sha256').update(keyFields).digest('hex');
-}
-
 // Zod schema for environment variables
 export const envSchema = z.object({
   DLAS_API_URL: z.string().url('DLAS API URL must be a valid URL'),
+  DLAS_EVT_URL: z.string().url('DLAS Events API URL must be a valid URL'),
 });
 
 // Schema for dataset in DLAS response
@@ -96,7 +85,37 @@ export const DLASInterfaceTransformSchema = DLASInterfaceSchema.transform((iface
   };
 });
 
+// Schema for DLAS event response
+export const DLASEventSchema = z.object({
+  msgId: z.string().uuid(),
+  businessDate: z.string(),
+  createdDateTime: z.string(),
+  endNodeId: z.string(),
+  endNodeName: z.string(),
+  rawJson: z.unknown().transform(json => JSON.stringify(json)), // Accept any JSON object and convert to string
+  startNodeId: z.string(),
+  startNodeName: z.string(),
+  valid: z.string().optional()
+});
+
+// Transform schema for converting DLAS event to our format
+export const DLASEventTransformSchema = DLASEventSchema.transform((event) => ({
+  msgId: event.msgId,
+  businessDate: event.businessDate,
+  createdDateTime: event.createdDateTime.replace('UTC', '').trim(),
+  endNodeId: event.endNodeId,
+  endNodeName: event.endNodeName,
+  rawJson: event.rawJson,
+  startNodeId: event.startNodeId,
+  startNodeName: event.startNodeName,
+  valid: event.valid || 'P'
+}));
+
 // Export types
 export type DLASInterface = z.infer<typeof DLASInterfaceSchema>;
 export type DLASResponse = z.infer<typeof DLASResponseSchema>;
 export type TransformedDLASInterface = z.infer<typeof DLASInterfaceTransformSchema>;
+
+// Export new event type
+export type DLASEvent = z.infer<typeof DLASEventSchema>;
+export type TransformedDLASEvent = z.infer<typeof DLASEventTransformSchema>;

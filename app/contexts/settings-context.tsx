@@ -1,68 +1,119 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import type { CityTimezone } from "~/types/timezone";
 
 interface SettingsContextType {
   excludeInactiveService: boolean;
   excludeInactiveInterface: boolean;
+  preferredTimezone: CityTimezone;
   toggleExcludeInactiveService: () => void;
   toggleExcludeInactiveInterface: () => void;
+  setPreferredTimezone: (timezone: CityTimezone) => void;
+  resetSettings: () => void;
 }
-
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
-
-const STORAGE_KEY = "oms-settings";
 
 interface Settings {
   excludeInactiveService: boolean;
   excludeInactiveInterface: boolean;
+  preferredTimezone: CityTimezone;
+}
+
+const STORAGE_KEY = "oms-settings";
+
+const DEFAULT_SETTINGS: Settings = {
+  excludeInactiveService: false,
+  excludeInactiveInterface: false,
+  preferredTimezone: "Hong Kong"
+};
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+function saveToStorage(settings: Settings) {
+  if (typeof window === 'undefined') return;
+  
+  const settingsString = JSON.stringify(settings);
+  try {
+    localStorage.setItem(STORAGE_KEY, settingsString);
+    document.cookie = `${STORAGE_KEY}=${encodeURIComponent(settingsString)}; path=/; max-age=31536000`; // 1 year
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+  }
+}
+
+function getInitialSettings(): Settings {
+  if (typeof window === 'undefined') {
+    return DEFAULT_SETTINGS;
+  }
+  
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return DEFAULT_SETTINGS;
+
+    const parsed = JSON.parse(saved) as Partial<Settings>;
+    
+    // Validate parsed settings
+    if (typeof parsed.excludeInactiveService !== 'boolean' ||
+        typeof parsed.excludeInactiveInterface !== 'boolean' ||
+        typeof parsed.preferredTimezone !== 'string') {
+      return DEFAULT_SETTINGS;
+    }
+
+    return parsed as Settings;
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+    return DEFAULT_SETTINGS;
+  }
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with default values
-  const [settings, setSettings] = useState<Settings>({
-    excludeInactiveService: true,
-    excludeInactiveInterface: true,
-  });
+  const [settings, setSettings] = useState<Settings>(getInitialSettings());
 
-  // Load settings from localStorage on mount
   useEffect(() => {
-    const storedSettings = localStorage.getItem(STORAGE_KEY);
-    if (storedSettings) {
-      const parsedSettings = JSON.parse(storedSettings);
-      setSettings(parsedSettings);
-      // Set cookie for server-side access
-      document.cookie = `${STORAGE_KEY}=${encodeURIComponent(storedSettings)}; path=/`;
-    }
+    // Remove this since we're already initializing with getInitialSettings
+    // setIsClient(true);
+    // const savedSettings = getInitialSettings();
+    // setSettings(savedSettings);
   }, []);
 
-  // Save settings to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    // Update cookie whenever settings change
-    document.cookie = `${STORAGE_KEY}=${encodeURIComponent(JSON.stringify(settings))}; path=/`;
-  }, [settings]);
+  const saveSettings = useCallback((newSettings: Settings) => {
+    setSettings(newSettings);
+    saveToStorage(newSettings);
+  }, []);
 
-  const toggleExcludeInactiveService = () => {
-    setSettings(prev => ({
-      ...prev,
-      excludeInactiveService: !prev.excludeInactiveService,
-    }));
-  };
+  const toggleExcludeInactiveService = useCallback(() => {
+    saveSettings({
+      ...settings,
+      excludeInactiveService: !settings.excludeInactiveService
+    });
+  }, [settings, saveSettings]);
 
-  const toggleExcludeInactiveInterface = () => {
-    setSettings(prev => ({
-      ...prev,
-      excludeInactiveInterface: !prev.excludeInactiveInterface,
-    }));
+  const toggleExcludeInactiveInterface = useCallback(() => {
+    saveSettings({
+      ...settings,
+      excludeInactiveInterface: !settings.excludeInactiveInterface
+    });
+  }, [settings, saveSettings]);
+
+  const handleSetTimezone = useCallback((timezone: CityTimezone) => {
+    saveSettings({
+      ...settings,
+      preferredTimezone: timezone
+    });
+  }, [settings, saveSettings]);
+
+  const resetSettings = useCallback(() => {
+    saveSettings(DEFAULT_SETTINGS);
+  }, [saveSettings]);
+
+  const value = {
+    ...settings,
+    toggleExcludeInactiveService,
+    toggleExcludeInactiveInterface,
+    setPreferredTimezone: handleSetTimezone,
+    resetSettings,
   };
 
   return (
-    <SettingsContext.Provider
-      value={{
-        ...settings,
-        toggleExcludeInactiveService,
-        toggleExcludeInactiveInterface,
-      }}
-    >
+    <SettingsContext.Provider value={value}>
       {children}
     </SettingsContext.Provider>
   );

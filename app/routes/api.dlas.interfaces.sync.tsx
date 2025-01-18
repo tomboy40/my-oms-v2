@@ -69,7 +69,6 @@ export async function action({ request }: ActionFunctionArgs) {
         return {
           ...transformed,
           id,
-          sla: existing.sla ?? 'TBD',
           priority: existing.priority ?? Priority.LOW,
           remarks: existing.remarks ?? null,
           interfaceStatus: transformed.interfaceStatus ?? existing.interfaceStatus ?? InterfaceStatus.ACTIVE,
