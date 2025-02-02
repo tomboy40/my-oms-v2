@@ -19,7 +19,7 @@ export const DLASDatasetSchema = z.object({
     name: z.string()
   }),
   ProductType: z.array(z.string()),
-  RelatedDrilldownKey: z.array(z.union([z.string(), z.number()])).nullable()
+  RelatedDrilldownList: z.array(z.union([z.string(), z.number()])).nullable()
 });
 
 // Zod schema for DLAS API response

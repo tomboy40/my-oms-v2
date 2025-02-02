@@ -1,7 +1,7 @@
 import { db } from "~/lib/db";
 import { datasets } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
-import type { DLASDataset } from "~/types/dlas";
+import type { DLASDataset } from "~/types/datasets";
 import { createHash } from 'crypto';
 import { nowUTC, toUTCString } from '~/utils/time';
 
@@ -48,7 +48,7 @@ export async function batchUpsertDatasets(
         description: dataset.Description,
         primaryDataTerm: dataset.PrimaryDataTerm?.name ?? null,
         productTypes: Array.isArray(dataset.ProductType) ? JSON.stringify(dataset.ProductType) : JSON.stringify([]),
-        relatedDrilldownKey: dataset.RelatedDrilldownKey ? JSON.stringify(dataset.RelatedDrilldownKey) : null,
+        relatedDrilldownKey: dataset.RelatedDrilldownList ? JSON.stringify(dataset.RelatedDrilldownList) : null,
         lastArrivalTime,
         createdAt: now,
         updatedAt: now,
@@ -61,7 +61,7 @@ export async function batchUpsertDatasets(
           description: dataset.Description,
           primaryDataTerm: dataset.PrimaryDataTerm?.name ?? null,
           productTypes: Array.isArray(dataset.ProductType) ? JSON.stringify(dataset.ProductType) : JSON.stringify([]),
-          relatedDrilldownKey: dataset.RelatedDrilldownKey ? JSON.stringify(dataset.RelatedDrilldownKey) : null,
+          relatedDrilldownKey: dataset.RelatedDrilldownList ? JSON.stringify(dataset.RelatedDrilldownList) : null,
           lastArrivalTime,
           updatedAt: now,
         }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Download } from "lucide-react";
 import * as Select from "@radix-ui/react-select";
 import { InterfaceDetails } from "./interface-details";
-import type { Interface } from "@prisma/client";
+import type { Interface } from "~/db/schema";
 import React from "react";
 
 const PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -74,7 +74,8 @@ export function InterfaceTable({
     const headers = EXPORT_COLUMNS.map(col => col.label).join(",");
     const rows = data.map(row => 
       EXPORT_COLUMNS.map(col => {
-        const value = row[col.key as keyof Interface];
+        // Using type assertion since Drizzle types are more specific
+        const value = (row as Record<string, unknown>)[col.key];
         return value ? `"${String(value).replace(/"/g, '""')}"` : "";
       }).join(",")
     );

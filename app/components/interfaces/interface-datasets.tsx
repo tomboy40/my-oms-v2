@@ -260,13 +260,16 @@ export function InterfaceDatasets({ datasets: initialDatasets, isLoading }: Inte
       if (!response.ok) throw new Error('Failed to sync events');
       
       const result = await response.json();
+      
+      const lastArrivalTime = result?.data?.lastArrivalTime ?? null;
+      console.log('Sync response:', { result, lastArrivalTime });
 
       setDatasets(currentDatasets => 
         currentDatasets.map(dataset => 
           dataset.id === datasetId 
             ? {
                 ...dataset,
-                lastArrivalTime: result.data.lastArrivalTime,
+                lastArrivalTime,
                 updatedAt: new Date().toISOString()
               }
             : dataset
@@ -279,6 +282,7 @@ export function InterfaceDatasets({ datasets: initialDatasets, isLoading }: Inte
 
     } catch (error) {
       console.error('Error syncing events:', error);
+      toast.error("Failed to sync events. Please try again.");
     } finally {
       setRefreshingDatasets(prev => {
         const next = new Set(prev);

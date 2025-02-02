@@ -31,8 +31,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Get all interfaces from DLAS response
     const dlasInterfaces = [
-      ...dlasResponse.interface.interface_dlas_logged,
-      ...dlasResponse.interface.interface_only_in_eim,
+      ...dlasResponse.interface.interface_dlas_logged
     ];
 
     // Get existing interfaces from DB

@@ -106,7 +106,7 @@ export class DLASService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(relatedDrilldownKeys),
+        body: JSON.stringify({ ids: relatedDrilldownKeys }),
         signal: controller.signal,
       });
 

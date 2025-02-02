@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Download, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, RefreshCw, Mail } from "lucide-react";
 import * as Select from "@radix-ui/react-select";
 import type { ITService } from "~/types/db";
 import React from "react";
@@ -9,7 +9,7 @@ const PAGE_SIZES = [10, 25, 50, 100] as const;
 type Column = {
   key: keyof ITService | "actions";
   label: string;
-  format?: (value: string) => string;
+  format?: (value: string) => string | JSX.Element;
 };
 
 const COLUMNS: Column[] = [
@@ -18,7 +18,46 @@ const COLUMNS: Column[] = [
   { key: "serviceName", label: "Service Name" },
   { key: "appCriticality", label: "Tier" },
   { key: "itServiceOwner", label: "Service Owner" },
-  { key: "itServiceOwnerEmail", label: "Owner Email" },
+  { 
+    key: "itServiceOwnerEmail", 
+    label: "Owner Email",
+    format: (value: string) => {
+      if (!value) return "N/A";
+      return (
+        <div className="flex items-center gap-2">
+          <span>{value}</span>
+          <a 
+            href={`mailto:${value}`}
+            onClick={(e) => e.stopPropagation()}
+            className="p-1 rounded-full hover:bg-gray-100"
+            title="Send email"
+          >
+            <Mail className="h-4 w-4 text-gray-500" />
+          </a>
+        </div>
+      );
+    }
+  },
+  { 
+    key: "itServiceOwnerDelegateEmail", 
+    label: "Delegate Email",
+    format: (value: string) => {
+      if (!value) return "N/A";
+      return (
+        <div className="flex items-center gap-2">
+          <span>{value}</span>
+          <a 
+            href={`mailto:${value}`}
+            onClick={(e) => e.stopPropagation()}
+            className="p-1 rounded-full hover:bg-gray-100"
+            title="Send email"
+          >
+            <Mail className="h-4 w-4 text-gray-500" />
+          </a>
+        </div>
+      );
+    }
+  },
   { key: "appInstStatus", label: "Status" },
   { key: "actions", label: "Actions" },
 ];
@@ -79,14 +118,48 @@ const DETAIL_SECTIONS: DetailSection[] = [
         format: (value: string) => value || "N/A"
       },
       { key: "itServiceOwnerId", label: "Owner ID" },
+      { key: "itServiceOwnerDelegate", label: "Delegate Owner" },
+      { key: "itServiceOwnerDelegateId", label: "Delegate Owner ID" },
       { 
         key: "itServiceOwnerEmail", 
         label: "Owner Email",
-        format: (value: string) => value || "N/A"
+        format: (value: string) => {
+          if (!value) return "N/A";
+          return (
+            <div className="flex items-center gap-2">
+              <span>{value}</span>
+              <a 
+                href={`mailto:${value}`}
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded-full hover:bg-gray-100"
+                title="Send email"
+              >
+                <Mail className="h-4 w-4 text-gray-500" />
+              </a>
+            </div>
+          );
+        }
       },
-      { key: "itServiceOwnerDelegate", label: "Delegate Owner" },
-      { key: "itServiceOwnerDelegateId", label: "Delegate Owner ID" },
-      { key: "itServiceOwnerDelegateEmail", label: "Delegate Email" },
+      { 
+        key: "itServiceOwnerDelegateEmail", 
+        label: "Delegate Email",
+        format: (value: string) => {
+          if (!value) return "N/A";
+          return (
+            <div className="flex items-center gap-2">
+              <span>{value}</span>
+              <a 
+                href={`mailto:${value}`}
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded-full hover:bg-gray-100"
+                title="Send email"
+              >
+                <Mail className="h-4 w-4 text-gray-500" />
+              </a>
+            </div>
+          );
+        }
+      },
     ],
   },
   {
@@ -165,7 +238,7 @@ export function ServiceTable({
     setExpandedServiceId(expandedServiceId === appInstanceId ? null : appInstanceId);
   };
 
-  const formatValue = (value: unknown, format?: (value: string) => string): string => {
+  const formatValue = (value: unknown, format?: (value: string) => string | JSX.Element): string | JSX.Element => {
     if (value === null || value === undefined) return "N/A";
     
     if (value instanceof Date || 

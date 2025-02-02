@@ -39,7 +39,8 @@ export const DLASDatasetSchema = z.object({
     name: z.string()
   }).optional(),
   ProductType: z.array(z.string()).optional(),
-  RelatedDrilldownKey: z.array(z.string().uuid()).nullable()
+  RelatedDrilldownList: z.array(z.string().uuid()).nullable(),
+  LastArrivalTime: z.string().nullable()
 });
 
 // Transform schema for converting DLAS dataset to our format
@@ -52,7 +53,7 @@ export const DLASDatasetTransformSchema = DLASDatasetSchema.transform((dataset) 
   description: dataset.Description,
   primaryDataTerm: dataset.PrimaryDataTerm?.name,
   productTypes: dataset.ProductType ?? [],
-  relatedDrilldownKey: dataset.RelatedDrilldownKey,
+  relatedDrilldownKey: dataset.RelatedDrilldownList,
   sla: null,
   lastArrivalTime: null,
   createdAt: new Date(),
