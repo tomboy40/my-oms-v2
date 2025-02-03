@@ -5,8 +5,8 @@ export const envSchema = z.object({
   ODS_API_URL: z.string().url('ODS API URL must be a valid URL'),
 });
 
-// Zod schema for ODS API response
-export const ODSResponseSchema = z.object({
+// Schema for a single ODS service
+export const ODSServiceSchema = z.object({
   appInstanceId: z.string(),
   serviceName: z.string(),
   pladaServiceId: z.string().optional(),
@@ -28,5 +28,14 @@ export const ODSResponseSchema = z.object({
   supportGroup: z.string().optional(),
 });
 
-// TypeScript types derived from the schemas
+// Zod schema for ODS API response
+export const ODSResponseSchema = z.object({
+  offset: z.number(),
+  limit: z.number(),
+  totalElements: z.number(),
+  results: z.array(ODSServiceSchema),
+});
+
+// TypeScript types
+export type ODSService = z.infer<typeof ODSServiceSchema>;
 export type ODSResponse = z.infer<typeof ODSResponseSchema>;

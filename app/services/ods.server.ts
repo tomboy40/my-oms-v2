@@ -33,7 +33,7 @@ export class ODSService {
       // Log the raw response for debugging
       console.log('[ODS Service] Raw API response:', JSON.stringify(rawData, null, 2));
 
-      // Parse the response as a single object
+      // Parse the response
       const validation = ODSResponseSchema.safeParse(rawData);
       if (validation.success) {
         console.log('[ODS Service] Successfully parsed service response');

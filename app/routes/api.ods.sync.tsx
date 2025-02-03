@@ -4,7 +4,6 @@ import { validateRequest, handleError } from '~/utils/validation.server';
 import { successResponse } from '~/utils/api.server';
 import { ODSService } from '~/services/ods.server';
 import { getITService, updateITService, createITService } from '~/models/service.server';
-import { ServiceStatus } from '~/types/services';
 
 // Validation schemas
 const SyncParamsSchema = z.object({
@@ -42,7 +41,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Fetch ODS data
     console.time('ODS Fetch');
-    const odsService = await ODSService.fetchService(data.appInstanceId);
+    const odsResponse = await ODSService.fetchService(data.appInstanceId);
     console.timeEnd('ODS Fetch');
 
     // Batch database operations
@@ -50,7 +49,7 @@ export async function action({ request }: ActionFunctionArgs) {
     let message = 'Service synchronized successfully';
     let error: string | undefined;
 
-    if (!odsService) {
+    if (!odsResponse || odsResponse.results.length === 0) {
       if (existingService) {
         await updateITService(data.appInstanceId, { ...existingService, appInstStatus: "Inactive" });
         message = 'Service marked as inactive as it no longer exists in ODS';
@@ -60,6 +59,9 @@ export async function action({ request }: ActionFunctionArgs) {
         error = 'No service found in ODS';
       }
     } else {
+      // Get the first service from results
+      const odsService = odsResponse.results[0];
+      
       if (existingService) {
         await updateITService(data.appInstanceId, odsService);
         message = 'Service updated successfully';
@@ -73,10 +75,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Calculate accurate stats
     const stats = {
-      processed: odsService ? 1 : 0,
-      created: odsService && !existingService ? 1 : 0,
-      updated: odsService && existingService ? 1 : 0,
-      removed: !odsService && existingService ? 1 : 0
+      processed: odsResponse?.results.length ?? 0,
+      created: !existingService && odsResponse?.results.length ? 1 : 0,
+      updated: existingService && odsResponse?.results.length ? 1 : 0,
+      removed: !odsResponse?.results.length && existingService ? 1 : 0
     };
 
     return successResponse<SyncResponse>({

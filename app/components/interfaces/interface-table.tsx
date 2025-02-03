@@ -131,7 +131,7 @@ export function InterfaceTable({
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border border-gray-200">
+              <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border border-gray-200 z-[40]">
                 <Select.Viewport>
                   {PAGE_SIZES.map(size => (
                     <Select.Item
@@ -160,60 +160,67 @@ export function InterfaceTable({
         </button>
       </div>
 
-      <div className="rounded-md border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="w-8 px-3 py-3"></th>
-              {COLUMNS.map(col => (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    {sortBy === col.key && (
-                      sortDirection === "asc" 
-                        ? <ChevronUp className="h-4 w-4" />
-                        : <ChevronDown className="h-4 w-4" />
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data.map((row) => (
-              <React.Fragment key={row.id}>
-                <tr
-                  onClick={() => handleRowClick(row.id)}
-                  className={`hover:bg-gray-50 cursor-pointer ${expandedInterfaceId === row.id ? 'bg-gray-50' : ''}`}
-                >
-                  <td className="px-3 py-4">
-                    {expandedInterfaceId === row.id ? (
-                      <ChevronUp className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    )}
-                  </td>
-                  {COLUMNS.map(col => (
-                    <td key={`${row.id}-${col.key}`} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {String(row[col.key as keyof Interface] ?? "N/A")}
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full table-fixed divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-8 px-3 py-3 relative"></th>
+                {COLUMNS.map(col => (
+                  <th
+                    key={col.key}
+                    onClick={() => handleSort(col.key)}
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-1">
+                      {col.label}
+                      {sortBy === col.key && (
+                        sortDirection === "asc" 
+                          ? <ChevronUp className="h-4 w-4" />
+                          : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {data.map((row) => (
+                <React.Fragment key={row.id}>
+                  <tr
+                    onClick={() => handleRowClick(row.id)}
+                    className={`hover:bg-gray-50 cursor-pointer ${expandedInterfaceId === row.id ? 'bg-gray-50' : ''}`}
+                  >
+                    <td className="px-3 py-4">
+                      {expandedInterfaceId === row.id ? (
+                        <ChevronUp className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      )}
                     </td>
-                  ))}
-                </tr>
-                {expandedInterfaceId === row.id && (
-                  <tr key={`${row.id}-details`}>
-                    <td colSpan={COLUMNS.length + 1} className="px-3 py-4 bg-gray-50">
-                      <InterfaceDetails interface={row} />
-                    </td>
+                    {COLUMNS.map(col => (
+                      <td key={`${row.id}-${col.key}`} className="px-3 py-4 text-sm text-gray-500">
+                        <div 
+                          className="truncate"
+                          title={String(row[col.key as keyof Interface] ?? "N/A")}
+                        >
+                        {String(row[col.key as keyof Interface] ?? "N/A")}
+                        </div>
+                      </td>
+                    ))}
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+                  {expandedInterfaceId === row.id && (
+                    <tr key={`${row.id}-details`}>
+                      <td colSpan={COLUMNS.length + 1} className="px-3 py-4 bg-gray-50">
+                        <InterfaceDetails interface={row} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="flex justify-end items-center">

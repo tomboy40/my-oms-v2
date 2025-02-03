@@ -6,7 +6,8 @@ const envSchema = z.object({
   SESSION_SECRET: z.string(),
   DLAS_API_URL: z.string(),
   DLAS_EVT_URL: z.string(),
-  ODS_API_URL: z.string()
+  ODS_API_URL: z.string(),
+  HEET_API_URL: z.string().url('HEET API URL must be a valid URL')
 });
 
 let env: z.infer<typeof envSchema>;

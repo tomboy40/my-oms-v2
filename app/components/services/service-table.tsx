@@ -345,102 +345,106 @@ export function ServiceTable({
         </button>
       </div>
 
-      <div className="rounded-md border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="w-8 px-3 py-3"></th>
-              {COLUMNS.map(({ key, label }) => (
-                <th
-                  key={key}
-                  onClick={() => handleSort(key)}
-                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  <div className="flex items-center gap-1">
-                    {label}
-                    {sortBy === key && key !== "actions" && (
-                      sortDirection === "asc" ? 
-                        <ChevronUp className="h-4 w-4" /> : 
-                        <ChevronDown className="h-4 w-4" />
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data.map((service) => (
-              <React.Fragment key={service.appInstanceId}>
-                <tr
-                  onClick={() => handleRowClick(service.appInstanceId)}
-                  className={`hover:bg-gray-50 cursor-pointer ${expandedServiceId === service.appInstanceId ? 'bg-gray-50' : ''}`}
-                >
-                  <td className="px-3 py-4">
-                    {expandedServiceId === service.appInstanceId ? (
-                      <ChevronUp className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    )}
-                  </td>
-                  {COLUMNS.map(({ key, format }) => {
-                    if (key === "actions") {
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full table-fixed divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-8 px-3 py-3"></th>
+                {COLUMNS.map(({ key, label }) => (
+                  <th
+                    key={key}
+                    onClick={() => handleSort(key)}
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-1">
+                      {label}
+                      {sortBy === key && key !== "actions" && (
+                        sortDirection === "asc" ? 
+                          <ChevronUp className="h-4 w-4" /> : 
+                          <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {data.map((service) => (
+                <React.Fragment key={service.appInstanceId}>
+                  <tr
+                    onClick={() => handleRowClick(service.appInstanceId)}
+                    className={`hover:bg-gray-50 cursor-pointer ${expandedServiceId === service.appInstanceId ? 'bg-gray-50' : ''}`}
+                  >
+                    <td className="px-3 py-4">
+                      {expandedServiceId === service.appInstanceId ? (
+                        <ChevronUp className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      )}
+                    </td>
+                    {COLUMNS.map(({ key, format }) => {
+                      if (key === "actions") {
+                        return (
+                          <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => onSync?.(service.appInstanceId)}
+                              disabled={isSyncing}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                              title="Sync from ODS"
+                            >
+                              {isSyncing ? (
+                                <>
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                  Syncing...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-3 w-3" />
+                                  Sync
+                                </>
+                              )}
+                            </button>
+                          </td>
+                        );
+                      }
                       return (
-                        <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => onSync?.(service.appInstanceId)}
-                            disabled={isSyncing}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-                            title="Sync from ODS"
-                          >
-                            {isSyncing ? (
-                              <>
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                                Syncing...
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="h-3 w-3" />
-                                Sync
-                              </>
-                            )}
-                          </button>
+                        <td key={key} className="px-3 py-4 text-sm text-gray-500">
+                          <div className="truncate">
+                            {formatValue(service[key as keyof ITService], format)}
+                          </div>
                         </td>
                       );
-                    }
-                    return (
-                      <td key={key} className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatValue(service[key as keyof ITService], format)}
-                      </td>
-                    );
-                  })}
-                </tr>
-                {expandedServiceId === service.appInstanceId && (
-                  <tr key={`${service.appInstanceId}-details`}>
-                    <td colSpan={COLUMNS.length + 1} className="px-3 py-4 bg-gray-50">
-                      <div className="bg-white p-4 rounded-md space-y-6">
-                        {DETAIL_SECTIONS.map(section => (
-                          <div key={section.title}>
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">{section.title}</h4>
-                            <dl className="grid grid-cols-2 gap-4">
-                              {section.fields.map(({ key, label, format }) => (
-                                <div key={key}>
-                                  <dt className="text-sm font-medium text-gray-500">{label}</dt>
-                                  <dd className="mt-1 text-sm text-gray-900">
-                                    {formatValue(service[key as keyof ITService], format)}
-                                  </dd>
-                                </div>
-                              ))}
-                            </dl>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
+                    })}
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+                  {expandedServiceId === service.appInstanceId && (
+                    <tr key={`${service.appInstanceId}-details`}>
+                      <td colSpan={COLUMNS.length + 1} className="px-3 py-4 bg-gray-50">
+                        <div className="bg-white p-4 rounded-md space-y-6">
+                          {DETAIL_SECTIONS.map(section => (
+                            <div key={section.title}>
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">{section.title}</h4>
+                              <dl className="grid grid-cols-2 gap-4">
+                                {section.fields.map(({ key, label, format }) => (
+                                  <div key={key}>
+                                    <dt className="text-sm font-medium text-gray-500">{label}</dt>
+                                    <dd className="mt-1 text-sm text-gray-900">
+                                      {formatValue(service[key as keyof ITService], format)}
+                                    </dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="flex justify-end items-center">
